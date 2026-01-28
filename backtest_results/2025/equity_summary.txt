@@ -1,0 +1,16 @@
+============================================================
+EQUITY CURVE SUMMARY
+============================================================
+Initial Equity: $10000.00
+Final Equity: $9756.84
+Total Return: -2.43%
+Absolute Return: $-243.16
+Peak Equity: $10238.27
+Max Drawdown: 7.96%
+Number of Points: 35040
+
+Average Return: -0.0001%
+Std Return: 0.0294%
+Min Return: -0.4766%
+Max Return: 0.7176%
+============================================================

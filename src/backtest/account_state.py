@@ -12,6 +12,7 @@ from decimal import Decimal
 import logging
 
 from src.risk.portfolio_tracker import Position, PositionStatus
+from src.backtest.fees import FeeCalculator, FeeType, OrderType
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +43,15 @@ class AccountState:
     - Account balance (total, free, used)
     - Open positions
     - Realized and unrealized P&L
-    - Fee tracking
+    - Fee tracking with FeeCalculator integration
+    - Funding rate deductions/additions
     """
     
     def __init__(
         self,
         initial_balance: float = 10000.0,
-        currency: str = "USD"
+        currency: str = "USD",
+        fee_calculator: Optional[FeeCalculator] = None
     ):
         """
         Initialize account state.
@@ -56,6 +59,7 @@ class AccountState:
         Args:
             initial_balance: Starting account balance
             currency: Account currency
+            fee_calculator: FeeCalculator instance for fee calculations
         """
         self._initial_balance = initial_balance
         self._currency = currency
@@ -71,6 +75,20 @@ class AccountState:
         # P&L tracking
         self._total_realized_pnl = 0.0
         self._total_fees_paid = 0.0
+        
+        # Fee calculator integration
+        self._fee_calculator = fee_calculator
+        
+        # Fee history for reporting
+        self._fee_history: List[Dict[str, Any]] = []
+        
+        # Funding payment tracking
+        self._total_funding_paid = 0.0
+        self._total_funding_received = 0.0
+        self._funding_history: List[Dict[str, Any]] = []
+        
+        # Last funding timestamp per symbol
+        self._last_funding_time: Dict[str, datetime] = {}
         
         logger.info(
             f"AccountState initialized: balance={initial_balance} {currency}"
@@ -136,6 +154,25 @@ class AccountState:
         """
         return list(self._closed_positions)
     
+    def set_fee_calculator(self, fee_calculator: FeeCalculator) -> None:
+        """
+        Set the fee calculator for this account.
+        
+        Args:
+            fee_calculator: FeeCalculator instance
+        """
+        self._fee_calculator = fee_calculator
+        logger.info("FeeCalculator set for AccountState")
+    
+    def get_fee_calculator(self) -> Optional[FeeCalculator]:
+        """
+        Get the fee calculator instance.
+        
+        Returns:
+            FeeCalculator instance or None
+        """
+        return self._fee_calculator
+    
     def process_fill(
         self,
         order_id: str,
@@ -143,8 +180,10 @@ class AccountState:
         side: str,
         amount: float,
         price: float,
-        fee: float,
-        timestamp: Optional[datetime] = None
+        fee: Optional[float] = None,
+        timestamp: Optional[datetime] = None,
+        order_type: str = "limit",
+        is_maker: bool = True
     ) -> Optional[Position]:
         """
         Process an order fill and update account state.
@@ -155,14 +194,46 @@ class AccountState:
             side: Order side ('buy' or 'sell')
             amount: Amount filled
             price: Fill price
-            fee: Fee paid
+            fee: Fee paid (calculated if None using FeeCalculator)
             timestamp: Fill timestamp (current time if None)
+            order_type: Order type ('limit', 'market', 'post_only')
+            is_maker: Whether this is a maker order (for fee calculation)
             
         Returns:
             Position if a position was opened/closed, None otherwise
         """
         if timestamp is None:
             timestamp = datetime.now()
+        
+        # Calculate fee using FeeCalculator if available and fee not provided
+        if fee is None and self._fee_calculator is not None:
+            order_type_enum = self._parse_order_type(order_type, is_maker)
+            fee_result = self._fee_calculator.calculate_trade_fee(
+                symbol=symbol,
+                amount=amount,
+                price=price,
+                order_type=order_type_enum,
+                timestamp=timestamp,
+                metadata={'order_id': order_id, 'side': side, 'is_maker': is_maker}
+            )
+            fee = fee_result['fee_paid']
+            fee_type = fee_result['fee_type']
+        else:
+            fee = fee or 0.0
+            fee_type = 'maker' if is_maker else 'taker'
+        
+        # Record fee in history
+        self._record_fee({
+            'timestamp': timestamp.isoformat(),
+            'symbol': symbol,
+            'order_id': order_id,
+            'side': side,
+            'amount': amount,
+            'price': price,
+            'fee': fee,
+            'fee_type': fee_type,
+            'notional_value': amount * price
+        })
         
         # Deduct fee from balance
         self._total_balance -= fee
@@ -201,6 +272,235 @@ class AccountState:
                     timestamp=timestamp,
                     fees=fee
                 )
+    
+    def _parse_order_type(self, order_type: str, is_maker: bool) -> OrderType:
+        """Parse order type string to OrderType enum."""
+        order_type = order_type.lower()
+        if order_type == 'market':
+            return OrderType.MARKET
+        elif order_type == 'post_only':
+            return OrderType.POST_ONLY
+        else:
+            return OrderType.LIMIT
+    
+    def _record_fee(self, fee_record: Dict[str, Any]) -> None:
+        """Record a fee transaction in history."""
+        self._fee_history.append(fee_record)
+    
+    def process_funding(
+        self,
+        symbol: str,
+        position_size: float,
+        mark_price: float,
+        timestamp: Optional[datetime] = None
+    ) -> Dict[str, Any]:
+        """
+        Process funding rate payment for a position.
+        
+        Args:
+            symbol: Trading pair symbol
+            position_size: Position size (positive for long, negative for short)
+            mark_price: Current mark price
+            timestamp: Current timestamp
+            
+        Returns:
+            Dictionary with funding payment details
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        # Check if we need to process funding (avoid duplicates)
+        last_funding = self._last_funding_time.get(symbol)
+        if last_funding is not None:
+            time_diff = timestamp - last_funding
+            if time_diff.total_seconds() < 3600:  # Minimum 1 hour between funding
+                return {'fee_paid': 0.0, 'net_payment': 0.0, 'processed': False}
+        
+        # Calculate funding using FeeCalculator if available
+        if self._fee_calculator is not None:
+            funding_result = self._fee_calculator.calculate_funding_fee(
+                symbol=symbol,
+                position_size=position_size,
+                mark_price=mark_price,
+                timestamp=timestamp
+            )
+            net_payment = funding_result.get('net_payment', 0.0)
+            fee_paid = funding_result.get('fee_paid', 0.0)
+            funding_rate = funding_result.get('funding_rate_annual', 0.0)
+        else:
+            # Simple funding calculation without FeeCalculator
+            net_payment = 0.0
+            fee_paid = 0.0
+            funding_rate = 0.0
+        
+        # Update balance based on funding payment
+        if net_payment != 0:
+            self._total_balance += net_payment
+            self._free_balance += net_payment
+            
+            if net_payment < 0:
+                self._total_funding_paid += abs(net_payment)
+            else:
+                self._total_funding_received += net_payment
+            
+            # Record funding transaction
+            funding_record = {
+                'timestamp': timestamp.isoformat(),
+                'symbol': symbol,
+                'position_size': position_size,
+                'mark_price': mark_price,
+                'funding_rate_annual': funding_rate,
+                'net_payment': net_payment,
+                'is_payment': net_payment < 0
+            }
+            self._funding_history.append(funding_record)
+            self._last_funding_time[symbol] = timestamp
+            
+            logger.debug(
+                f"Funding processed: {symbol} {'paid' if net_payment < 0 else 'received'} "
+                f"{abs(net_payment):.4f}"
+            )
+        
+        return {
+            'fee_paid': fee_paid,
+            'net_payment': net_payment,
+            'funding_rate': funding_rate,
+            'processed': True
+        }
+    
+    def update_funding_for_all_positions(
+        self,
+        current_prices: Dict[str, float],
+        timestamp: Optional[datetime] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Update funding for all open positions.
+        
+        Args:
+            current_prices: Dictionary mapping symbols to current prices
+            timestamp: Current timestamp
+            
+        Returns:
+            Dictionary mapping symbols to funding results
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        funding_results = {}
+        
+        for position in self._positions.values():
+            if position.symbol in current_prices:
+                # Determine position size with sign based on side
+                position_size = position.size if position.side == 'long' else -position.size
+                
+                result = self.process_funding(
+                    symbol=position.symbol,
+                    position_size=position_size,
+                    mark_price=current_prices[position.symbol],
+                    timestamp=timestamp
+                )
+                funding_results[position.symbol] = result
+        
+        return funding_results
+    
+    def get_total_funding_paid(self) -> float:
+        """
+        Get total funding fees paid.
+        
+        Returns:
+            Total funding fees paid
+        """
+        return self._total_funding_paid
+    
+    def get_total_funding_received(self) -> float:
+        """
+        Get total funding fees received.
+        
+        Returns:
+            Total funding fees received
+        """
+        return self._total_funding_received
+    
+    def get_net_funding(self) -> float:
+        """
+        Get net funding (received - paid).
+        
+        Returns:
+            Net funding amount
+        """
+        return self._total_funding_received - self._total_funding_paid
+    
+    def get_fee_history(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get fee history with optional time filtering.
+        
+        Args:
+            start_time: Filter by start time
+            end_time: Filter by end time
+            
+        Returns:
+            List of fee records
+        """
+        records = self._fee_history
+        
+        if start_time:
+            records = [r for r in records if datetime.fromisoformat(r['timestamp']) >= start_time]
+        
+        if end_time:
+            records = [r for r in records if datetime.fromisoformat(r['timestamp']) <= end_time]
+        
+        return records
+    
+    def get_funding_history(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get funding history with optional time filtering.
+        
+        Args:
+            start_time: Filter by start time
+            end_time: Filter by end time
+            
+        Returns:
+            List of funding records
+        """
+        records = self._funding_history
+        
+        if start_time:
+            records = [r for r in records if datetime.fromisoformat(r['timestamp']) >= start_time]
+        
+        if end_time:
+            records = [r for r in records if datetime.fromisoformat(r['timestamp']) <= end_time]
+        
+        return records
+    
+    def get_fee_summary(self) -> Dict[str, Any]:
+        """
+        Get comprehensive fee summary.
+        
+        Returns:
+            Dictionary with fee statistics
+        """
+        summary = {
+            'trading_fees': self._total_fees_paid,
+            'funding_paid': self._total_funding_paid,
+            'funding_received': self._total_funding_received,
+            'net_funding': self.get_net_funding(),
+            'total_costs': self._total_fees_paid + self._total_funding_paid
+        }
+        
+        # Add FeeCalculator stats if available
+        if self._fee_calculator is not None:
+            summary['fee_calculator_stats'] = self._fee_calculator.get_cumulative_fees()
+            summary['volume_stats'] = self._fee_calculator.get_volume_stats()
+        
+        return summary
     
     def update_unrealized_pnl(self, current_prices: Dict[str, float]) -> None:
         """
@@ -466,7 +766,7 @@ class AccountState:
         Returns:
             Dictionary with account statistics
         """
-        return {
+        stats = {
             'initial_balance': self._initial_balance,
             'total_balance': self._total_balance,
             'free_balance': self._free_balance,
@@ -474,10 +774,22 @@ class AccountState:
             'equity': self.get_equity(),
             'total_realized_pnl': self._total_realized_pnl,
             'total_fees_paid': self._total_fees_paid,
+            'total_funding_paid': self._total_funding_paid,
+            'total_funding_received': self._total_funding_received,
+            'net_funding': self.get_net_funding(),
             'num_open_positions': len(self._positions),
             'num_closed_positions': len(self._closed_positions),
+            'num_fee_transactions': len(self._fee_history),
+            'num_funding_transactions': len(self._funding_history),
             'currency': self._currency
         }
+        
+        # Add fee calculator stats if available
+        if self._fee_calculator is not None:
+            stats['fee_rates'] = self._fee_calculator.get_current_fee_rates()
+            stats['cumulative_fees'] = self._fee_calculator.get_cumulative_fees()
+        
+        return stats
     
     def __repr__(self) -> str:
         """String representation of AccountState."""
@@ -485,5 +797,7 @@ class AccountState:
             f"AccountState(balance={self._total_balance:.2f}, "
             f"equity={self.get_equity():.2f}, "
             f"positions={len(self._positions)}, "
-            f"realized_pnl={self._total_realized_pnl:.2f})"
+            f"realized_pnl={self._total_realized_pnl:.2f}, "
+            f"fees={self._total_fees_paid:.2f}, "
+            f"net_funding={self.get_net_funding():.2f})"
         )
