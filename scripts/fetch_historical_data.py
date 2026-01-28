@@ -91,12 +91,12 @@ class HistoricalDataFetcher:
                 config = config_manager.load_config()
                 self.client = ExchangeClient.from_config(config)
             else:
-                # Create client with default config
+                # Create client with default config - use mainnet for real historical data
                 from src.exchange.exchange_client import ExchangeClientConfig
                 client_config = ExchangeClientConfig(
                     exchange_id='delta',
-                    sandbox=True,
-                    testnet=True
+                    sandbox=False,  # Use mainnet for real historical data
+                    testnet=False   # Use mainnet for real historical data
                 )
                 self.client = ExchangeClient(client_config)
             

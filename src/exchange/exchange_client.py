@@ -177,8 +177,8 @@ class ExchangeClientConfig:
     exchange_id: str = 'delta'
     api_key: Optional[str] = None
     api_secret: Optional[str] = None
-    sandbox: bool = True
-    testnet: bool = True
+    sandbox: bool = False  # Default to mainnet for real historical data
+    testnet: bool = False  # Default to mainnet for real historical data
     
     # Retry settings
     max_retries: int = 3

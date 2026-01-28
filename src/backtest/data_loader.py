@@ -77,8 +77,14 @@ class HistoricalDataLoader:
         
         for symbol in self.config.symbols:
             # Convert symbol to filename (e.g., BTC/USD -> BTC_USD.csv)
-            filename = f"{symbol.replace('/', '_')}.csv"
-            filepath = self.data_dir / filename
+            # Also try with timeframe suffix (e.g., BTC_USDT_15m.csv)
+            filename_base = f"{symbol.replace('/', '_')}.csv"
+            filename_with_timeframe = f"{symbol.replace('/', '_')}_{self.config.timeframe}.csv"
+            
+            filepath = self.data_dir / filename_base
+            if not filepath.exists():
+                # Try with timeframe suffix
+                filepath = self.data_dir / filename_with_timeframe
             
             if not filepath.exists():
                 logger.warning(f"CSV file not found: {filepath}")
@@ -88,7 +94,7 @@ class HistoricalDataLoader:
                 candles = self._parse_csv(filepath, symbol)
                 historical_data[symbol] = candles
                 logger.info(
-                    f"Loaded {len(candles)} candles for {symbol} from {filename}"
+                    f"Loaded {len(candles)} candles for {symbol} from {filepath.name}"
                 )
             except Exception as e:
                 logger.error(f"Error parsing CSV file {filepath}: {e}")
