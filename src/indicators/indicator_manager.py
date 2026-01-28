@@ -57,6 +57,9 @@ class IndicatorValues:
     last_crossover: CrossoverType = CrossoverType.NONE
     crossover_index: Optional[int] = None
     
+    # Candle tracking (for crossover recency + cooldown)
+    candle_index: Optional[int] = None
+    
     # Metadata
     timestamp: Optional[datetime] = None
     symbol: Optional[str] = None
@@ -80,6 +83,7 @@ class IndicatorValues:
             'trend': self.trend,
             'last_crossover': self.last_crossover.value,
             'crossover_index': self.crossover_index,
+            'candle_index': self.candle_index,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None,
             'symbol': self.symbol
         }
@@ -189,6 +193,7 @@ class IndicatorManager:
         # Create indicator values container
         indicators = IndicatorValues(symbol=symbol)
         indicators.timestamp = datetime.utcnow()
+        indicators.candle_index = len(closes) - 1
         
         # Calculate EMAs
         emas = calculate_all_emas(closes)

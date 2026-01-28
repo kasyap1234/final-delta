@@ -473,6 +473,10 @@ class BacktestEngine:
                 # Update risk manager balance
                 self.risk_manager.set_account_balance(self.portfolio_tracker.get_account_balance())
                 
+                # Record trade outcome in strategy engine for cooldown management
+                if self.strategy_engine:
+                    self.strategy_engine.record_trade_outcome(symbol, trade_record.realized_pnl)
+                
                 # Record the trade
                 trade = {
                     'timestamp': candle.timestamp.isoformat(),

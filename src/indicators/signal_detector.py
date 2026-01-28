@@ -88,6 +88,13 @@ class SignalDetector:
         # EMA crossover recency (number of candles)
         self.crossover_lookback = self.config.get('crossover_lookback', 3)
         
+        # Confirmation requirements - prevent weak "alignment only" trades
+        self.min_component_strength = self.config.get('min_component_strength', 0.6)
+        self.min_agreeing_signals = self.config.get('min_agreeing_signals', 2)
+        
+        # EMA alignment noise filter - require meaningful separation vs ATR
+        self.ema_alignment_min_sep_atr = self.config.get('ema_alignment_min_sep_atr', 0.25)
+        
         logger.info(f"SignalDetector initialized with RSI({self.rsi_oversold}/{self.rsi_overbought}), "
                    f"threshold={self.resistance_threshold}")
     
@@ -173,27 +180,34 @@ class SignalDetector:
         Returns:
             Tuple of (signal_type, strength, reason)
         """
+        # Check if crossover is recent (within lookback period)
+        is_recent = True
+        if indicators.crossover_index is not None and indicators.candle_index is not None:
+            is_recent = (indicators.candle_index - indicators.crossover_index) <= self.crossover_lookback
+        
         # Check for recent crossover
-        if indicators.last_crossover == CrossoverType.BULLISH:
+        if is_recent and indicators.last_crossover == CrossoverType.BULLISH:
             # Recent bullish crossover
             if indicators.trend == 'uptrend':
                 return (SignalType.BUY, 0.8, "Bullish EMA crossover in uptrend")
             else:
                 return (SignalType.BUY, 0.5, "Bullish EMA crossover")
         
-        elif indicators.last_crossover == CrossoverType.BEARISH:
+        elif is_recent and indicators.last_crossover == CrossoverType.BEARISH:
             # Recent bearish crossover
             if indicators.trend == 'downtrend':
                 return (SignalType.SELL, 0.8, "Bearish EMA crossover in downtrend")
             else:
                 return (SignalType.SELL, 0.5, "Bearish EMA crossover")
         
-        # No recent crossover - check EMA alignment
-        if indicators.ema_9 and indicators.ema_21 and indicators.ema_50:
-            if indicators.ema_9 > indicators.ema_21 > indicators.ema_50:
-                return (SignalType.BUY, 0.3, "Bullish EMA alignment")
-            elif indicators.ema_9 < indicators.ema_21 < indicators.ema_50:
-                return (SignalType.SELL, 0.3, "Bearish EMA alignment")
+        # No recent crossover - check EMA alignment (only if separation is meaningful vs ATR)
+        if indicators.ema_9 and indicators.ema_21 and indicators.ema_50 and indicators.atr:
+            sep_ok = abs(indicators.ema_9 - indicators.ema_21) >= (self.ema_alignment_min_sep_atr * indicators.atr)
+            if sep_ok:
+                if indicators.ema_9 > indicators.ema_21 > indicators.ema_50:
+                    return (SignalType.BUY, 0.3, "Bullish EMA alignment (filtered)")
+                elif indicators.ema_9 < indicators.ema_21 < indicators.ema_50:
+                    return (SignalType.SELL, 0.3, "Bearish EMA alignment (filtered)")
         
         return (SignalType.NONE, 0.0, "No EMA signal")
     
@@ -306,6 +320,9 @@ class SignalDetector:
         """
         Combine multiple indicator signals into final signal.
         
+        Requires either one strong trigger (crossover/RSI extreme) OR 
+        multiple agreeing signals to prevent weak "alignment only" trades.
+        
         Args:
             signals: List of (signal_type, strength, reason) tuples
             symbol: Trading pair symbol
@@ -323,8 +340,21 @@ class SignalDetector:
         buy_strength = sum(s[1] for s in buy_signals)
         sell_strength = sum(s[1] for s in sell_signals)
         
-        # Determine final signal
-        if buy_strength > sell_strength and buy_strength >= self.weak_signal_threshold:
+        # Calculate max component strength and count of agreeing signals
+        buy_max = max((s[1] for s in buy_signals), default=0.0)
+        sell_max = max((s[1] for s in sell_signals), default=0.0)
+        buy_count = sum(1 for s in buy_signals if s[1] > 0)
+        sell_count = sum(1 for s in sell_signals if s[1] > 0)
+        
+        def passes_confirmation(side_strength: float, side_max: float, side_count: int) -> bool:
+            """Require either one strong trigger OR multiple agreeing signals."""
+            return (
+                side_strength >= self.weak_signal_threshold and
+                (side_max >= self.min_component_strength or side_count >= self.min_agreeing_signals)
+            )
+        
+        # Determine final signal with confirmation check
+        if buy_strength > sell_strength and passes_confirmation(buy_strength, buy_max, buy_count):
             # Buy signal
             if buy_strength >= self.strong_signal_threshold:
                 signal_type = SignalType.STRONG_BUY
@@ -335,7 +365,7 @@ class SignalDetector:
             reason = "; ".join(reasons) if reasons else "Buy signal"
             strength = min(buy_strength, 1.0)
             
-        elif sell_strength > buy_strength and sell_strength >= self.weak_signal_threshold:
+        elif sell_strength > buy_strength and passes_confirmation(sell_strength, sell_max, sell_count):
             # Sell signal
             if sell_strength >= self.strong_signal_threshold:
                 signal_type = SignalType.STRONG_SELL
@@ -347,9 +377,9 @@ class SignalDetector:
             strength = min(sell_strength, 1.0)
             
         else:
-            # No clear signal
+            # No clear/confirmed signal
             signal_type = SignalType.NONE
-            reason = "No clear signal"
+            reason = "No confirmed signal"
             strength = 0.0
         
         return Signal(

@@ -88,6 +88,21 @@ class StrategyConfig:
     strong_signal_threshold: float = 0.8
     weak_signal_threshold: float = 0.3
     crossover_lookback: int = 3
+    
+    # Adaptive risk controls - prevents overfitting by using normalized volatility
+    atr_baseline_lookback: int = 100  # baseline for ATR% median
+    sl_mult_min_factor: float = 0.75  # min multiplier for SL in low vol
+    sl_mult_max_factor: float = 1.50  # max multiplier for SL in high vol
+    
+    rr_min_factor: float = 0.60  # min RR multiplier in weak trends
+    rr_max_factor: float = 1.10  # max RR multiplier in strong trends
+    trend_strength_ref: float = 2.0  # "2 ATRs" separation is decent trend
+    
+    # Regime filter - skip trading in choppy/ranging markets
+    min_trend_strength_atr: float = 1.0  # abs(EMA50-EMA200)/ATR must exceed this
+    
+    # Cooldown after losses to reduce churn
+    cooldown_after_loss_candles: int = 5
 
 
 class BacktestStrategyEngine:
@@ -147,6 +162,9 @@ class BacktestStrategyEngine:
 
         # Track open positions for exit signal detection
         self.open_positions: Dict[str, Dict[str, Any]] = {}
+        
+        # Cooldown tracking per symbol (candle index when cooldown expires)
+        self.cooldown_until_index: Dict[str, int] = {}
 
         logger.info("BacktestStrategyEngine initialized with live trading parity")
 
@@ -202,6 +220,45 @@ class BacktestStrategyEngine:
             return None
 
         return indicators
+    
+    def _clamp(self, x: float, lo: float, hi: float) -> float:
+        """Clamp value x between lo and hi."""
+        return max(lo, min(hi, x))
+    
+    def _vol_context(self, symbol: str, indicators: IndicatorValues) -> Dict[str, float]:
+        """
+        Calculate volatility context for adaptive SL/TP.
+        
+        Returns:
+            Dictionary with atr_ratio (current vol vs baseline) and trend_strength
+        """
+        price_arrays = self.indicator_manager.get_price_arrays(symbol)
+        if not price_arrays or indicators.atr is None:
+            return {'atr_ratio': 1.0, 'trend_strength': 0.0}
+        
+        closes = price_arrays['closes']
+        highs = price_arrays['highs']
+        lows = price_arrays['lows']
+        
+        # Recompute ATR series for baseline
+        from src.indicators.technical_indicators import calculate_atr
+        atr_series = calculate_atr(highs, lows, closes, self.config.atr_period)
+        atr_pct_series = atr_series / closes
+        
+        lookback = min(self.config.atr_baseline_lookback, len(closes))
+        recent = atr_pct_series[-lookback:]
+        recent = recent[~np.isnan(recent)]
+        baseline = float(np.median(recent)) if len(recent) else (indicators.atr / closes[-1])
+        
+        atr_pct_now = indicators.atr / closes[-1]
+        atr_ratio = atr_pct_now / baseline if baseline > 0 else 1.0
+        
+        # Trend strength in ATR units (dimensionless)
+        trend_strength = 0.0
+        if indicators.ema_50 is not None and indicators.ema_200 is not None and indicators.atr > 0:
+            trend_strength = abs(indicators.ema_50 - indicators.ema_200) / indicators.atr
+        
+        return {'atr_ratio': atr_ratio, 'trend_strength': trend_strength}
 
     def generate_signal(self, symbol: str, indicators: IndicatorValues) -> Optional[StrategySignal]:
         """
@@ -340,7 +397,10 @@ class BacktestStrategyEngine:
     def calculate_position_size(self, symbol: str, signal: StrategySignal,
                                 current_price: float) -> Dict[str, Any]:
         """
-        Calculate position size based on risk parameters using SignalDetector methods.
+        Calculate position size based on risk parameters using adaptive SL/TP.
+
+        Uses volatility context to adapt stop-loss multiplier (wider in high vol)
+        and risk-reward ratio (tighter in weak trends) without overfitting.
 
         Args:
             symbol: Trading symbol
@@ -355,26 +415,56 @@ class BacktestStrategyEngine:
         if not indicators:
             return {'size': 0, 'stop_loss': 0, 'take_profit': 0}
 
-        # Use SignalDetector's methods for stop loss and take profit (same as live trading)
         position_type = signal.direction.value
+        
+        # Get volatility context for adaptive parameters
+        ctx = self._vol_context(symbol, indicators)
+        
+        # Adaptive stop-loss multiplier: wider in high volatility, tighter in low vol
+        sl_mult = self.config.stop_loss_atr_multiplier * self._clamp(
+            ctx['atr_ratio'],
+            self.config.sl_mult_min_factor,
+            self.config.sl_mult_max_factor
+        )
+        
+        # Adaptive RR based on trend strength: tighter in weak trends/ranges
+        trend_factor = self._clamp(
+            ctx['trend_strength'] / self.config.trend_strength_ref,
+            self.config.rr_min_factor,
+            self.config.rr_max_factor
+        )
+        rr = self.config.take_profit_rr_ratio * trend_factor
 
         stop_loss = self.signal_detector.get_stop_loss_price(
             indicators=indicators,
             entry_price=current_price,
             position_type=position_type,
-            multiplier=self.config.stop_loss_atr_multiplier
+            multiplier=sl_mult
         )
 
         take_profit = self.signal_detector.get_take_profit_price(
             indicators=indicators,
             entry_price=current_price,
             position_type=position_type,
-            risk_reward_ratio=self.config.take_profit_rr_ratio
+            risk_reward_ratio=rr
         )
+        
+        # Optional: Cap TP at R2/S2 pivot levels (wider than R1/S1) in weak trend conditions
+        # Only apply if trend_strength is low (ranging market) and the pivot is reasonable
+        if ctx['trend_strength'] < self.config.trend_strength_ref:
+            min_rr_distance = abs(current_price - stop_loss) * 0.8  # Ensure at least 0.8:1 RR
+            if position_type == 'long' and indicators.r2 is not None:
+                pivot_cap = indicators.r2 * (1 - self.config.resistance_threshold)
+                if pivot_cap > current_price + min_rr_distance:
+                    take_profit = min(take_profit, pivot_cap)
+            elif position_type == 'short' and indicators.s2 is not None:
+                pivot_cap = indicators.s2 * (1 + self.config.resistance_threshold)
+                if pivot_cap < current_price - min_rr_distance:
+                    take_profit = max(take_profit, pivot_cap)
 
-        # Calculate position size based on risk
+        # Calculate position size based on risk (uses adaptive SL multiplier)
         atr = indicators.atr if indicators.atr else current_price * 0.02  # Default 2% if no ATR
-        stop_distance = atr * self.config.stop_loss_atr_multiplier
+        stop_distance = atr * sl_mult
 
         risk_amount = self.account_balance * (self.config.max_risk_per_trade_percent / 100)
 
@@ -395,13 +485,18 @@ class BacktestStrategyEngine:
             'stop_loss': stop_loss,
             'take_profit': take_profit,
             'risk_amount': risk_amount,
-            'atr': atr
+            'atr': atr,
+            'sl_mult': sl_mult,
+            'rr': rr,
+            'trend_strength': ctx['trend_strength']
         }
 
     def process_candle(self, symbol: str, candle: Dict[str, float], timestamp: datetime,
                        current_balance: float) -> Optional[Dict[str, Any]]:
         """
         Process a candle and generate trading decision.
+        
+        Includes regime filtering (skip choppy markets) and cooldown after losses.
 
         Args:
             symbol: Trading symbol
@@ -416,11 +511,21 @@ class BacktestStrategyEngine:
 
         # Update price history
         self.update_price(symbol, candle, timestamp)
+        
+        # Check cooldown - skip if still in cooldown period after a loss
+        current_idx = len(self.price_history.get(symbol, [])) - 1
+        if symbol in self.cooldown_until_index and current_idx <= self.cooldown_until_index[symbol]:
+            return None
 
         # Calculate indicators using IndicatorManager
         indicators = self.calculate_indicators(symbol)
         if not indicators:
             return None
+        
+        # Regime filter - skip choppy/ranging markets
+        ctx = self._vol_context(symbol, indicators)
+        if ctx['trend_strength'] < self.config.min_trend_strength_atr:
+            return None  # Skip this candle - not enough trend
 
         # Generate entry signal using SignalDetector
         signal = self.generate_signal(symbol, indicators)
@@ -439,7 +544,8 @@ class BacktestStrategyEngine:
             'entry_price': candle['close'],
             'stop_loss': position_info['stop_loss'],
             'take_profit': position_info['take_profit'],
-            'atr': position_info['atr']
+            'atr': position_info['atr'],
+            'trend_strength': ctx['trend_strength']
         }
 
     def check_position_exit(self, symbol: str, candle: Dict[str, float],
@@ -498,6 +604,22 @@ class BacktestStrategyEngine:
         """
         if symbol in self.open_positions:
             del self.open_positions[symbol]
+    
+    def record_trade_outcome(self, symbol: str, realized_pnl: float) -> None:
+        """
+        Record trade outcome for cooldown management.
+        
+        Triggers cooldown period after losing trades to reduce churn
+        during unfavorable market conditions.
+
+        Args:
+            symbol: Trading symbol
+            realized_pnl: Realized profit/loss (positive or negative)
+        """
+        current_idx = len(self.price_history.get(symbol, [])) - 1
+        if realized_pnl < 0:
+            self.cooldown_until_index[symbol] = current_idx + self.config.cooldown_after_loss_candles
+            logger.debug(f"Cooldown activated for {symbol} until candle {self.cooldown_until_index[symbol]}")
 
     def get_indicator_values(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
