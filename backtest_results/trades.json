@@ -1,0 +1,2782 @@
+[
+  {
+    "timestamp": "2025-01-03T04:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.08356304019046028,
+    "price": 5421.84,
+    "pnl": -50.09270007257332,
+    "reason": "stop_loss",
+    "entry_price": 6021.3
+  },
+  {
+    "timestamp": "2025-01-03T09:15:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 15.14692517418964,
+    "price": 24.547142857142852,
+    "pnl": 128.1862639027135,
+    "reason": "take_profit",
+    "entry_price": 33.01
+  },
+  {
+    "timestamp": "2025-01-03T10:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.010504950732340859,
+    "price": 50340.26,
+    "pnl": -26.671124463847566,
+    "reason": "stop_loss",
+    "entry_price": 47801.35
+  },
+  {
+    "timestamp": "2025-01-03T12:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.10101415291471358,
+    "price": 4233.46,
+    "pnl": -68.84114521137731,
+    "reason": "stop_loss",
+    "entry_price": 4914.96
+  },
+  {
+    "timestamp": "2025-01-03T17:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.15514776812853923,
+    "price": 3499.35,
+    "pnl": -44.856322721323245,
+    "reason": "stop_loss",
+    "entry_price": 3210.23
+  },
+  {
+    "timestamp": "2025-01-04T05:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.010454969885956147,
+    "price": 51966.13285714286,
+    "pnl": -38.37844697780694,
+    "reason": "stop_loss",
+    "entry_price": 48295.3
+  },
+  {
+    "timestamp": "2025-01-04T07:00:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.1406782665961111,
+    "price": 3843.3914285714286,
+    "pnl": -44.73588974651563,
+    "reason": "stop_loss",
+    "entry_price": 3525.39
+  },
+  {
+    "timestamp": "2025-01-04T16:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.13302377902333823,
+    "price": 2994.367142857143,
+    "pnl": 99.8107819447312,
+    "reason": "take_profit",
+    "entry_price": 3744.69
+  },
+  {
+    "timestamp": "2025-01-04T17:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.009729965700668518,
+    "price": 54856.95,
+    "pnl": -33.10105141470322,
+    "reason": "stop_loss",
+    "entry_price": 51454.98
+  },
+  {
+    "timestamp": "2025-01-04T19:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.16765318892798667,
+    "price": 3447.1685714285713,
+    "pnl": -74.74961131087652,
+    "reason": "stop_loss",
+    "entry_price": 3001.31
+  },
+  {
+    "timestamp": "2025-01-04T22:15:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.13791117928669036,
+    "price": 4093.6428571428573,
+    "pnl": -68.12989571135874,
+    "reason": "stop_loss",
+    "entry_price": 3599.63
+  },
+  {
+    "timestamp": "2025-01-04T23:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.1117912509623569,
+    "price": 3820.85,
+    "pnl": -59.4561768243295,
+    "reason": "stop_loss",
+    "entry_price": 4352.7
+  },
+  {
+    "timestamp": "2025-01-05T06:15:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.13758096422738653,
+    "price": 4120.52,
+    "pnl": -82.07805163877431,
+    "reason": "stop_loss",
+    "entry_price": 3523.94
+  },
+  {
+    "timestamp": "2025-01-05T09:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009352275519403522,
+    "price": 61149.13,
+    "pnl": 76.19261456555971,
+    "reason": "take_profit",
+    "entry_price": 53002.17
+  },
+  {
+    "timestamp": "2025-01-05T13:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.007823976457010816,
+    "price": 58777.79,
+    "pnl": -29.34671857330818,
+    "reason": "stop_loss",
+    "entry_price": 62528.66
+  },
+  {
+    "timestamp": "2025-01-05T15:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.00846284527453607,
+    "price": 52803.27857142858,
+    "pnl": -39.67002245643047,
+    "reason": "stop_loss",
+    "entry_price": 57490.83
+  },
+  {
+    "timestamp": "2025-01-05T18:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 21.4378190574258,
+    "price": 28.85,
+    "pnl": -113.19168462320825,
+    "reason": "stop_loss",
+    "entry_price": 23.57
+  },
+  {
+    "timestamp": "2025-01-05T23:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 16.98187536714718,
+    "price": 16.68,
+    "pnl": 195.97084173687844,
+    "reason": "take_profit",
+    "entry_price": 28.22
+  },
+  {
+    "timestamp": "2025-01-05T23:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.11920752604519896,
+    "price": 5544.472857142857,
+    "pnl": 172.0215689771954,
+    "reason": "take_profit",
+    "entry_price": 4101.43
+  },
+  {
+    "timestamp": "2025-01-06T05:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.009351998748803094,
+    "price": 43244.46,
+    "pnl": 83.09428576287779,
+    "reason": "take_profit",
+    "entry_price": 52129.65
+  },
+  {
+    "timestamp": "2025-01-06T09:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 34.98092783136914,
+    "price": 19.02,
+    "pnl": -169.3076907038266,
+    "reason": "stop_loss",
+    "entry_price": 14.18
+  },
+  {
+    "timestamp": "2025-01-06T13:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 30.046649896833454,
+    "price": 18.79,
+    "pnl": -75.11662474208363,
+    "reason": "stop_loss",
+    "entry_price": 16.29
+  },
+  {
+    "timestamp": "2025-01-06T15:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 26.664347796090006,
+    "price": 21.12,
+    "pnl": -78.6598259984655,
+    "reason": "stop_loss",
+    "entry_price": 18.17
+  },
+  {
+    "timestamp": "2025-01-06T22:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 23.09693227973265,
+    "price": 24.66,
+    "pnl": -85.92058808060543,
+    "reason": "stop_loss",
+    "entry_price": 20.94
+  },
+  {
+    "timestamp": "2025-01-07T00:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.09300679720411693,
+    "price": 7154.954285714286,
+    "pnl": 169.74803424576533,
+    "reason": "take_profit",
+    "entry_price": 5329.84
+  },
+  {
+    "timestamp": "2025-01-07T05:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.05519779529845203,
+    "price": 8144.808571428571,
+    "pnl": -38.983521783525035,
+    "reason": "stop_loss",
+    "entry_price": 8851.06
+  },
+  {
+    "timestamp": "2025-01-07T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.010912791366914311,
+    "price": 48676.16,
+    "pnl": -39.625109348661624,
+    "reason": "stop_loss",
+    "entry_price": 45045.09
+  },
+  {
+    "timestamp": "2025-01-07T09:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 20.138656923505668,
+    "price": 27.01,
+    "pnl": -59.20765135510669,
+    "reason": "stop_loss",
+    "entry_price": 24.07
+  },
+  {
+    "timestamp": "2025-01-07T11:30:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.060028256710270886,
+    "price": 9747.484285714285,
+    "pnl": 98.8625940878037,
+    "reason": "take_profit",
+    "entry_price": 8100.55
+  },
+  {
+    "timestamp": "2025-01-07T19:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.010041300677227475,
+    "price": 42594.82142857143,
+    "pnl": 57.22164293355353,
+    "reason": "take_profit",
+    "entry_price": 48293.45
+  },
+  {
+    "timestamp": "2025-01-07T20:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.04842263879777776,
+    "price": 8895.684285714286,
+    "pnl": -55.98023673574008,
+    "reason": "stop_loss",
+    "entry_price": 10051.76
+  },
+  {
+    "timestamp": "2025-01-07T23:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 19.13429128108468,
+    "price": 17.55428571428571,
+    "pnl": 149.35681079978102,
+    "reason": "take_profit",
+    "entry_price": 25.36
+  },
+  {
+    "timestamp": "2025-01-08T00:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.05739466155250184,
+    "price": 7279.769999999999,
+    "pnl": -73.3480816776353,
+    "reason": "stop_loss",
+    "entry_price": 8557.73
+  },
+  {
+    "timestamp": "2025-01-08T04:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 34.74370088407267,
+    "price": 16.01,
+    "pnl": -65.31815766205665,
+    "reason": "stop_loss",
+    "entry_price": 14.13
+  },
+  {
+    "timestamp": "2025-01-08T06:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 29.7289539196112,
+    "price": 19.187142857142856,
+    "pnl": -80.77781479300072,
+    "reason": "stop_loss",
+    "entry_price": 16.47
+  },
+  {
+    "timestamp": "2025-01-08T09:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 26.34902037611391,
+    "price": 21.197142857142858,
+    "pnl": -74.7559349528032,
+    "reason": "stop_loss",
+    "entry_price": 18.36
+  },
+  {
+    "timestamp": "2025-01-08T10:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 21.837695267349474,
+    "price": 24.47,
+    "pnl": -53.93910731035318,
+    "reason": "stop_loss",
+    "entry_price": 22.0
+  },
+  {
+    "timestamp": "2025-01-08T11:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01183816761401727,
+    "price": 34449.50714285715,
+    "pnl": 82.61529091463063,
+    "reason": "take_profit",
+    "entry_price": 41428.23
+  },
+  {
+    "timestamp": "2025-01-08T17:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.06607934735180612,
+    "price": 6090.03,
+    "pnl": -87.05161061432236,
+    "reason": "stop_loss",
+    "entry_price": 7407.41
+  },
+  {
+    "timestamp": "2025-01-08T19:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.013894150651716343,
+    "price": 38204.52,
+    "pnl": -53.06134451438508,
+    "reason": "stop_loss",
+    "entry_price": 34385.55
+  },
+  {
+    "timestamp": "2025-01-09T01:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.012715963671862117,
+    "price": 41489.1,
+    "pnl": -58.31006869441751,
+    "reason": "stop_loss",
+    "entry_price": 36903.52
+  },
+  {
+    "timestamp": "2025-01-09T04:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 23.67619185661934,
+    "price": 11.66,
+    "pnl": 196.74915432850668,
+    "reason": "take_profit",
+    "entry_price": 19.97
+  },
+  {
+    "timestamp": "2025-01-09T06:00:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.09683952018438305,
+    "price": 4166.984285714286,
+    "pnl": 76.9298682031607,
+    "reason": "take_profit",
+    "entry_price": 4961.39
+  },
+  {
+    "timestamp": "2025-01-09T09:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.11642529014376704,
+    "price": 4677.812857142857,
+    "pnl": -61.72203596050275,
+    "reason": "stop_loss",
+    "entry_price": 4147.67
+  },
+  {
+    "timestamp": "2025-01-09T11:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 50.301725027720494,
+    "price": 11.0,
+    "pnl": -70.42241503880871,
+    "reason": "stop_loss",
+    "entry_price": 9.6
+  },
+  {
+    "timestamp": "2025-01-09T12:15:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 41.663500266871544,
+    "price": 13.08,
+    "pnl": -67.91150543500065,
+    "reason": "stop_loss",
+    "entry_price": 11.45
+  },
+  {
+    "timestamp": "2025-01-09T15:15:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 30.716986546828426,
+    "price": 17.34,
+    "pnl": -58.6694443044423,
+    "reason": "stop_loss",
+    "entry_price": 15.43
+  },
+  {
+    "timestamp": "2025-01-09T16:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.10273188425737635,
+    "price": 3480.457142857143,
+    "pnl": 122.11562969872745,
+    "reason": "take_profit",
+    "entry_price": 4669.14
+  },
+  {
+    "timestamp": "2025-01-09T23:15:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.13744833045015264,
+    "price": 4083.3142857142857,
+    "pnl": -82.40223765244434,
+    "reason": "stop_loss",
+    "entry_price": 3483.8
+  },
+  {
+    "timestamp": "2025-01-10T01:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.1098122932833855,
+    "price": 4911.68,
+    "pnl": -64.88918222408532,
+    "reason": "stop_loss",
+    "entry_price": 4320.77
+  },
+  {
+    "timestamp": "2025-01-10T10:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 31.65645991176605,
+    "price": 10.495714285714286,
+    "pnl": 143.5394339427792,
+    "reason": "take_profit",
+    "entry_price": 15.03
+  },
+  {
+    "timestamp": "2025-01-10T12:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.09079468489089795,
+    "price": 4535.43,
+    "pnl": -62.92344046993899,
+    "reason": "stop_loss",
+    "entry_price": 5228.46
+  },
+  {
+    "timestamp": "2025-01-10T12:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 40.22444547301307,
+    "price": 14.118571428571428,
+    "pnl": -90.04529436601636,
+    "reason": "stop_loss",
+    "entry_price": 11.88
+  },
+  {
+    "timestamp": "2025-01-10T15:15:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.10710593788147822,
+    "price": 5125.27,
+    "pnl": -79.89460330330992,
+    "reason": "stop_loss",
+    "entry_price": 4379.33
+  },
+  {
+    "timestamp": "2025-01-10T20:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 33.69628210793779,
+    "price": 16.04,
+    "pnl": -71.4361180688281,
+    "reason": "stop_loss",
+    "entry_price": 13.92
+  },
+  {
+    "timestamp": "2025-01-11T02:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.09071457858161927,
+    "price": 4256.612857142857,
+    "pnl": -81.30812474398094,
+    "reason": "stop_loss",
+    "entry_price": 5152.92
+  },
+  {
+    "timestamp": "2025-01-11T09:15:00",
+    "symbol": "SOL/USDT",
+    "side": "sell",
+    "size": 18.51549258275298,
+    "price": 30.52,
+    "pnl": 104.61253309255432,
+    "reason": "take_profit",
+    "entry_price": 24.87
+  },
+  {
+    "timestamp": "2025-01-11T16:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.11268010443057354,
+    "price": 5090.07,
+    "pnl": -112.32516210161722,
+    "reason": "stop_loss",
+    "entry_price": 4093.22
+  },
+  {
+    "timestamp": "2025-01-11T18:45:00",
+    "symbol": "SOL/USDT",
+    "side": "sell",
+    "size": 12.045069888243903,
+    "price": 33.02,
+    "pnl": -65.04337739651706,
+    "reason": "stop_loss",
+    "entry_price": 38.42
+  },
+  {
+    "timestamp": "2025-01-11T21:00:00",
+    "symbol": "SOL/USDT",
+    "side": "sell",
+    "size": 13.981546909668904,
+    "price": 26.12,
+    "pnl": -90.6004239746545,
+    "reason": "stop_loss",
+    "entry_price": 32.6
+  },
+  {
+    "timestamp": "2025-01-12T03:45:00",
+    "symbol": "SOL/USDT",
+    "side": "sell",
+    "size": 12.532950311285923,
+    "price": 31.01,
+    "pnl": -63.04074006576816,
+    "reason": "stop_loss",
+    "entry_price": 36.04
+  },
+  {
+    "timestamp": "2025-01-12T05:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.011676898135497776,
+    "price": 29483.62,
+    "pnl": 132.98060288139612,
+    "reason": "take_profit",
+    "entry_price": 40871.97
+  },
+  {
+    "timestamp": "2025-01-12T17:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 0.08919356248930839,
+    "price": 3930.494285714286,
+    "pnl": -104.12418259189367,
+    "reason": "stop_loss",
+    "entry_price": 5097.89
+  },
+  {
+    "timestamp": "2025-01-12T18:15:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 17.063225681605186,
+    "price": 14.721428571428568,
+    "pnl": 197.39714509948405,
+    "reason": "take_profit",
+    "entry_price": 26.29
+  },
+  {
+    "timestamp": "2025-01-15T15:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.015943799906787938,
+    "price": 35223.35,
+    "pnl": -113.00184127735855,
+    "reason": "stop_loss",
+    "entry_price": 28135.84
+  },
+  {
+    "timestamp": "2025-01-24T07:30:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 25.55894195725191,
+    "price": 0.6571428571428566,
+    "pnl": 367.0994320545867,
+    "reason": "take_profit",
+    "entry_price": 15.02
+  },
+  {
+    "timestamp": "2025-01-24T18:15:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 768.725675636677,
+    "price": 0.71,
+    "pnl": -61.49805405093413,
+    "reason": "stop_loss",
+    "entry_price": 0.63
+  },
+  {
+    "timestamp": "2025-01-25T07:00:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 657.7651265074738,
+    "price": 0.5385714285714285,
+    "pnl": 125.91503850285933,
+    "reason": "take_profit",
+    "entry_price": 0.73
+  },
+  {
+    "timestamp": "2025-01-25T08:15:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 954.2400090492459,
+    "price": 0.62,
+    "pnl": -104.96640099541705,
+    "reason": "stop_loss",
+    "entry_price": 0.51
+  },
+  {
+    "timestamp": "2025-01-25T09:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.013489852026579735,
+    "price": 19012.387142857136,
+    "pnl": 216.11367334017402,
+    "reason": "take_profit",
+    "entry_price": 35032.85
+  },
+  {
+    "timestamp": "2025-01-26T16:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 767.064766432465,
+    "price": 0.37,
+    "pnl": 199.43683927244092,
+    "reason": "take_profit",
+    "entry_price": 0.63
+  },
+  {
+    "timestamp": "2025-01-31T05:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 0.11909666539180608,
+    "price": 1286.8600000000001,
+    "pnl": 300.96441924501744,
+    "reason": "take_profit",
+    "entry_price": 3813.92
+  },
+  {
+    "timestamp": "2025-01-31T13:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 1240.9527995948347,
+    "price": 0.05,
+    "pnl": 397.1048958703471,
+    "reason": "take_profit",
+    "entry_price": 0.37
+  },
+  {
+    "timestamp": "2025-01-31T17:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 13057.178780371381,
+    "price": 0.03428571428571429,
+    "pnl": 74.61245017355074,
+    "reason": "take_profit",
+    "entry_price": 0.04
+  },
+  {
+    "timestamp": "2025-01-31T20:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 13150.793720516584,
+    "price": 0.03,
+    "pnl": 131.50793720516586,
+    "reason": "take_profit",
+    "entry_price": 0.04
+  },
+  {
+    "timestamp": "2025-02-01T16:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.02499321005470851,
+    "price": 26881.058571428573,
+    "pnl": -194.58560090474955,
+    "reason": "stop_loss",
+    "entry_price": 19095.52
+  },
+  {
+    "timestamp": "2025-02-02T17:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01960393586392082,
+    "price": 35391.66,
+    "pnl": -159.56839239732864,
+    "reason": "stop_loss",
+    "entry_price": 27252.05
+  },
+  {
+    "timestamp": "2025-02-06T13:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.015091577952375496,
+    "price": 18132.307142857142,
+    "pnl": 261.01763692034075,
+    "reason": "take_profit",
+    "entry_price": 35427.89
+  },
+  {
+    "timestamp": "2025-02-07T16:45:00",
+    "symbol": "SOL/USDT",
+    "side": "buy",
+    "size": 17682.13391687251,
+    "price": 0.007142857142857142,
+    "pnl": 404.1630609570859,
+    "reason": "take_profit",
+    "entry_price": 0.03
+  },
+  {
+    "timestamp": "2025-04-08T05:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.023813900945093187,
+    "price": 27175.6,
+    "pnl": -216.7443627028507,
+    "reason": "stop_loss",
+    "entry_price": 18074.01
+  },
+  {
+    "timestamp": "2025-04-12T23:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.020156512577215256,
+    "price": 36866.6,
+    "pnl": -182.62949316173922,
+    "reason": "stop_loss",
+    "entry_price": 27806.03
+  },
+  {
+    "timestamp": "2025-04-15T03:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.015197975476665753,
+    "price": 44641.21000000001,
+    "pnl": -127.13835989053787,
+    "reason": "stop_loss",
+    "entry_price": 36275.73
+  },
+  {
+    "timestamp": "2025-04-15T13:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.011567002909318615,
+    "price": 52126.28,
+    "pnl": 57.97682600226135,
+    "reason": "take_profit",
+    "entry_price": 47114.02
+  },
+  {
+    "timestamp": "2025-04-15T18:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.010841314937250048,
+    "price": 56929.48428571429,
+    "pnl": 69.31843845321077,
+    "reason": "take_profit",
+    "entry_price": 50535.57
+  },
+  {
+    "timestamp": "2025-04-16T04:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009690203286110087,
+    "price": 52994.078571428574,
+    "pnl": -37.82233079932814,
+    "reason": "stop_loss",
+    "entry_price": 56897.23
+  },
+  {
+    "timestamp": "2025-04-16T10:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.010562003358295456,
+    "price": 60652.76,
+    "pnl": 91.17818391102288,
+    "reason": "take_profit",
+    "entry_price": 52020.1
+  },
+  {
+    "timestamp": "2025-04-17T02:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009164229351565523,
+    "price": 69613.76,
+    "pnl": 83.9388423227292,
+    "reason": "take_profit",
+    "entry_price": 60454.36
+  },
+  {
+    "timestamp": "2025-04-17T12:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.008276606398387735,
+    "price": 61852.93,
+    "pnl": -46.23916526406474,
+    "reason": "stop_loss",
+    "entry_price": 67439.66
+  },
+  {
+    "timestamp": "2025-04-17T14:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.008913118277931578,
+    "price": 56267.89,
+    "pnl": -54.35433440721345,
+    "reason": "stop_loss",
+    "entry_price": 62366.13
+  },
+  {
+    "timestamp": "2025-04-18T01:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009887780434259948,
+    "price": 48450.53,
+    "pnl": -74.09170961682271,
+    "reason": "stop_loss",
+    "entry_price": 55943.79
+  },
+  {
+    "timestamp": "2025-04-18T23:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.011452986589562996,
+    "price": 56084.1,
+    "pnl": -92.90628362493734,
+    "reason": "stop_loss",
+    "entry_price": 47972.13
+  },
+  {
+    "timestamp": "2025-04-19T08:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.010979986624811639,
+    "price": 44446.31,
+    "pnl": 56.737653485452945,
+    "reason": "take_profit",
+    "entry_price": 49613.68
+  },
+  {
+    "timestamp": "2025-04-19T19:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01334153547464456,
+    "price": 35694.34857142858,
+    "pnl": 71.34454708677184,
+    "reason": "take_profit",
+    "entry_price": 41041.9
+  },
+  {
+    "timestamp": "2025-04-20T02:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.014566991731317543,
+    "price": 40214.96,
+    "pnl": -34.66754661161072,
+    "reason": "stop_loss",
+    "entry_price": 37835.09
+  },
+  {
+    "timestamp": "2025-04-20T03:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.014044606824931366,
+    "price": 42472.56142857143,
+    "pnl": -47.11785016248155,
+    "reason": "stop_loss",
+    "entry_price": 39117.69
+  },
+  {
+    "timestamp": "2025-04-20T11:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.012225710436379423,
+    "price": 37365.85428571429,
+    "pnl": 90.20918591548912,
+    "reason": "take_profit",
+    "entry_price": 44744.5
+  },
+  {
+    "timestamp": "2025-04-20T20:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.014623767212045191,
+    "price": 41577.06,
+    "pnl": -56.4989246237366,
+    "reason": "stop_loss",
+    "entry_price": 37713.56
+  },
+  {
+    "timestamp": "2025-04-21T00:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.012942963830776666,
+    "price": 46139.28,
+    "pnl": -48.43761841066028,
+    "reason": "stop_loss",
+    "entry_price": 42396.89
+  },
+  {
+    "timestamp": "2025-04-21T11:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.011432088719866451,
+    "price": 43295.1,
+    "pnl": -51.336023038334744,
+    "reason": "stop_loss",
+    "entry_price": 47785.62
+  },
+  {
+    "timestamp": "2025-04-21T15:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.013613843963191303,
+    "price": 43409.30714285714,
+    "pnl": -47.27648475739816,
+    "reason": "stop_loss",
+    "entry_price": 39936.63
+  },
+  {
+    "timestamp": "2025-04-21T17:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.011435625860573902,
+    "price": 44134.25,
+    "pnl": -36.59926314173234,
+    "reason": "stop_loss",
+    "entry_price": 47334.71
+  },
+  {
+    "timestamp": "2025-04-21T20:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.013302550327067272,
+    "price": 43235.21,
+    "pnl": -35.680233512763095,
+    "reason": "stop_loss",
+    "entry_price": 40553.0
+  },
+  {
+    "timestamp": "2025-04-21T21:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01242777849938174,
+    "price": 46443.1,
+    "pnl": -39.495852904390134,
+    "reason": "stop_loss",
+    "entry_price": 43265.07
+  },
+  {
+    "timestamp": "2025-04-22T01:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.012677636443842852,
+    "price": 44667.59,
+    "pnl": -30.53877810047967,
+    "reason": "stop_loss",
+    "entry_price": 42258.72
+  },
+  {
+    "timestamp": "2025-04-22T05:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.012008153059918533,
+    "price": 47504.71142857143,
+    "pnl": -36.245786595154264,
+    "reason": "stop_loss",
+    "entry_price": 44486.28
+  },
+  {
+    "timestamp": "2025-04-22T07:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.010633698753806995,
+    "price": 47143.89,
+    "pnl": -31.050613035091544,
+    "reason": "stop_loss",
+    "entry_price": 50063.91
+  },
+  {
+    "timestamp": "2025-04-22T10:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.010573626682209746,
+    "price": 57449.07,
+    "pnl": 76.66799250123421,
+    "reason": "take_profit",
+    "entry_price": 50198.2
+  },
+  {
+    "timestamp": "2025-04-22T22:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009904437969323375,
+    "price": 62699.43,
+    "pnl": 86.42493718775943,
+    "reason": "take_profit",
+    "entry_price": 53973.55
+  },
+  {
+    "timestamp": "2025-04-23T00:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.008494701168970394,
+    "price": 59435.707142857136,
+    "pnl": -34.037272490498886,
+    "reason": "stop_loss",
+    "entry_price": 63442.59
+  },
+  {
+    "timestamp": "2025-04-23T03:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009183571434586799,
+    "price": 54865.54,
+    "pnl": -33.32617054325768,
+    "reason": "stop_loss",
+    "entry_price": 58494.43
+  },
+  {
+    "timestamp": "2025-04-23T07:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009817185807236225,
+    "price": 64175.82,
+    "pnl": 94.51750882747666,
+    "reason": "take_profit",
+    "entry_price": 54548.06
+  },
+  {
+    "timestamp": "2025-04-24T07:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.008473133197135283,
+    "price": 57975.17,
+    "pnl": -49.06494874799144,
+    "reason": "stop_loss",
+    "entry_price": 63765.82
+  },
+  {
+    "timestamp": "2025-04-25T19:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.009285143310810328,
+    "price": 50706.12285714286,
+    "pnl": -67.05950689608589,
+    "reason": "stop_loss",
+    "entry_price": 57928.36
+  },
+  {
+    "timestamp": "2025-04-27T12:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.010899856139719619,
+    "price": 37382.24,
+    "pnl": 127.14202593312794,
+    "reason": "take_profit",
+    "entry_price": 49046.8
+  },
+  {
+    "timestamp": "2025-04-27T17:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01445548826383247,
+    "price": 39627.99857142857,
+    "pnl": -31.87780028823638,
+    "reason": "stop_loss",
+    "entry_price": 37422.76
+  },
+  {
+    "timestamp": "2025-04-27T23:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.013366609377511787,
+    "price": 35282.392857142855,
+    "pnl": 67.7528987546068,
+    "reason": "take_profit",
+    "entry_price": 40351.21
+  },
+  {
+    "timestamp": "2025-04-28T01:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.015407651006197507,
+    "price": 28976.648571428574,
+    "pnl": 96.29183181577201,
+    "reason": "take_profit",
+    "entry_price": 35226.26
+  },
+  {
+    "timestamp": "2025-04-28T23:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.018573609917476447,
+    "price": 21417.218571428573,
+    "pnl": 149.79971950406028,
+    "reason": "take_profit",
+    "entry_price": 29482.41
+  },
+  {
+    "timestamp": "2025-04-29T13:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.025185998347411944,
+    "price": 23206.97,
+    "pnl": -29.4494841476619,
+    "reason": "stop_loss",
+    "entry_price": 22037.69
+  },
+  {
+    "timestamp": "2025-04-29T19:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.024039552193971976,
+    "price": 20137.785714285714,
+    "pnl": 69.50397751642988,
+    "reason": "take_profit",
+    "entry_price": 23029.02
+  },
+  {
+    "timestamp": "2025-04-29T21:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.026963221458458263,
+    "price": 22256.7,
+    "pnl": -43.02224652690143,
+    "reason": "stop_loss",
+    "entry_price": 20661.11
+  },
+  {
+    "timestamp": "2025-04-30T06:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.024794619299309196,
+    "price": 24338.754285714287,
+    "pnl": -48.53160640196404,
+    "reason": "stop_loss",
+    "entry_price": 22381.41
+  },
+  {
+    "timestamp": "2025-05-01T12:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.02251779951900085,
+    "price": 26775.841428571428,
+    "pnl": -50.468500696236056,
+    "reason": "stop_loss",
+    "entry_price": 24534.57
+  },
+  {
+    "timestamp": "2025-05-01T14:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.019606192649113365,
+    "price": 30235.17,
+    "pnl": -42.84992222041671,
+    "reason": "stop_loss",
+    "entry_price": 28049.64
+  },
+  {
+    "timestamp": "2025-05-02T08:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01994549132181568,
+    "price": 23734.09,
+    "pnl": 74.40864992516555,
+    "reason": "take_profit",
+    "entry_price": 27464.69
+  },
+  {
+    "timestamp": "2025-05-02T16:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.02189065771242409,
+    "price": 27333.92,
+    "pnl": -47.00427695984837,
+    "reason": "stop_loss",
+    "entry_price": 25186.69
+  },
+  {
+    "timestamp": "2025-05-03T08:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.020286390390445653,
+    "price": 29334.442857142858,
+    "pnl": -46.00512836076027,
+    "reason": "stop_loss",
+    "entry_price": 27066.66
+  },
+  {
+    "timestamp": "2025-05-03T16:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.020164758881884706,
+    "price": 28583.335714285713,
+    "pnl": -29.619927901205237,
+    "reason": "stop_loss",
+    "entry_price": 27114.44
+  },
+  {
+    "timestamp": "2025-05-03T23:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.02117537322155615,
+    "price": 27481.27,
+    "pnl": -36.649488956940566,
+    "reason": "stop_loss",
+    "entry_price": 25750.51
+  },
+  {
+    "timestamp": "2025-05-04T01:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.019504956739000438,
+    "price": 29642.61,
+    "pnl": -34.737742803457635,
+    "reason": "stop_loss",
+    "entry_price": 27861.64
+  },
+  {
+    "timestamp": "2025-05-04T11:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.018832051965027595,
+    "price": 25272.17142857143,
+    "pnl": 65.76771313609342,
+    "reason": "take_profit",
+    "entry_price": 28764.5
+  },
+  {
+    "timestamp": "2025-05-04T15:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.02107848381411747,
+    "price": 27533.28,
+    "pnl": -35.40974495933589,
+    "reason": "stop_loss",
+    "entry_price": 25853.38
+  },
+  {
+    "timestamp": "2025-05-04T20:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01974627969712403,
+    "price": 29246.28,
+    "pnl": -34.3474687563654,
+    "reason": "stop_loss",
+    "entry_price": 27506.84
+  },
+  {
+    "timestamp": "2025-05-05T10:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.016865908561911124,
+    "price": 36460.46571428572,
+    "pnl": 73.53815625192283,
+    "reason": "take_profit",
+    "entry_price": 32100.3
+  },
+  {
+    "timestamp": "2025-05-05T14:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.014576709374014273,
+    "price": 35652.95,
+    "pnl": -25.365369283003524,
+    "reason": "stop_loss",
+    "entry_price": 37393.08
+  },
+  {
+    "timestamp": "2025-05-06T04:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.015203948597921575,
+    "price": 34156.61,
+    "pnl": -24.487327572326457,
+    "reason": "stop_loss",
+    "entry_price": 35767.2
+  },
+  {
+    "timestamp": "2025-05-06T05:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.01631018589601428,
+    "price": 30958.06,
+    "pnl": -37.66674330825535,
+    "reason": "stop_loss",
+    "entry_price": 33267.46
+  },
+  {
+    "timestamp": "2025-05-06T10:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.015516229257352522,
+    "price": 32845.96,
+    "pnl": -31.00065024472754,
+    "reason": "stop_loss",
+    "entry_price": 34843.91
+  },
+  {
+    "timestamp": "2025-05-06T16:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.016457991189256563,
+    "price": 28941.9,
+    "pnl": 62.76189108058232,
+    "reason": "take_profit",
+    "entry_price": 32755.36
+  },
+  {
+    "timestamp": "2025-05-08T10:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.018546023195661017,
+    "price": 24083.75,
+    "pnl": 95.34547616935721,
+    "reason": "take_profit",
+    "entry_price": 29224.77
+  },
+  {
+    "timestamp": "2025-05-08T16:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.021273059254045778,
+    "price": 27805.14,
+    "pnl": -44.471968562360296,
+    "reason": "stop_loss",
+    "entry_price": 25714.61
+  },
+  {
+    "timestamp": "2025-05-09T02:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.01942449063838694,
+    "price": 24938.71,
+    "pnl": 60.48320197018376,
+    "reason": "take_profit",
+    "entry_price": 28052.47
+  },
+  {
+    "timestamp": "2025-05-09T10:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.022002162514779443,
+    "price": 26644.44,
+    "pnl": -38.31742608436382,
+    "reason": "stop_loss",
+    "entry_price": 24902.91
+  },
+  {
+    "timestamp": "2025-05-09T14:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.019968382414967407,
+    "price": 22541.90857142857,
+    "pnl": 95.89958286091067,
+    "reason": "take_profit",
+    "entry_price": 27344.48
+  },
+  {
+    "timestamp": "2025-05-11T18:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.02415219641972597,
+    "price": 16524.949999999997,
+    "pnl": 151.65888697838534,
+    "reason": "take_profit",
+    "entry_price": 22804.25
+  },
+  {
+    "timestamp": "2025-05-13T05:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.03459592897199075,
+    "price": 8505.15,
+    "pnl": 263.96174866694366,
+    "reason": "take_profit",
+    "entry_price": 16135.0
+  },
+  {
+    "timestamp": "2025-05-13T16:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.0745472289874451,
+    "price": 8058.36,
+    "pnl": -29.253823599253213,
+    "reason": "stop_loss",
+    "entry_price": 7665.94
+  },
+  {
+    "timestamp": "2025-05-13T23:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.06873916673477719,
+    "price": 7350.13,
+    "pnl": 64.86983903927658,
+    "reason": "take_profit",
+    "entry_price": 8293.84
+  },
+  {
+    "timestamp": "2025-05-14T07:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.07703339660215107,
+    "price": 6313.54,
+    "pnl": 87.1085945437464,
+    "reason": "take_profit",
+    "entry_price": 7444.33
+  },
+  {
+    "timestamp": "2025-05-14T13:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.08714362250231383,
+    "price": 7236.8,
+    "pnl": -52.802063746602,
+    "reason": "stop_loss",
+    "entry_price": 6630.88
+  },
+  {
+    "timestamp": "2025-05-14T18:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.07940989721937333,
+    "price": 8035.875714285714,
+    "pnl": -62.90659205111221,
+    "reason": "stop_loss",
+    "entry_price": 7243.7
+  },
+  {
+    "timestamp": "2025-05-15T13:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.07109918667955299,
+    "price": 6246.12,
+    "pnl": 127.98209098252937,
+    "reason": "take_profit",
+    "entry_price": 8046.17
+  },
+  {
+    "timestamp": "2025-05-17T05:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.0936984996068676,
+    "price": 3956.39,
+    "pnl": 207.83826388796948,
+    "reason": "take_profit",
+    "entry_price": 6174.55
+  },
+  {
+    "timestamp": "2025-05-18T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.14616622849752348,
+    "price": 5104.627142857143,
+    "pnl": -157.1925911575809,
+    "reason": "stop_loss",
+    "entry_price": 4029.19
+  },
+  {
+    "timestamp": "2025-05-18T15:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.11133403636680587,
+    "price": 6447.527142857143,
+    "pnl": -136.75907215464662,
+    "reason": "stop_loss",
+    "entry_price": 5219.16
+  },
+  {
+    "timestamp": "2025-05-19T07:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.08719704681311057,
+    "price": 7883.217142857143,
+    "pnl": -113.14925472167718,
+    "reason": "stop_loss",
+    "entry_price": 6585.59
+  },
+  {
+    "timestamp": "2025-05-20T05:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.06967816045583733,
+    "price": 9537.07,
+    "pnl": -95.89735545376436,
+    "reason": "stop_loss",
+    "entry_price": 8160.78
+  },
+  {
+    "timestamp": "2025-05-20T16:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.057524324870849165,
+    "price": 10254.45,
+    "pnl": -26.01767689583642,
+    "reason": "stop_loss",
+    "entry_price": 9802.16
+  },
+  {
+    "timestamp": "2025-05-21T01:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.05880656176451666,
+    "price": 10221.385714285714,
+    "pnl": -38.52157432134243,
+    "reason": "stop_loss",
+    "entry_price": 9566.33
+  },
+  {
+    "timestamp": "2025-05-21T05:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.05515916327074205,
+    "price": 10739.76,
+    "pnl": -31.76230098619139,
+    "reason": "stop_loss",
+    "entry_price": 10163.93
+  },
+  {
+    "timestamp": "2025-05-22T08:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.05360871495422319,
+    "price": 10917.42,
+    "pnl": -26.228063791353694,
+    "reason": "stop_loss",
+    "entry_price": 10428.17
+  },
+  {
+    "timestamp": "2025-05-22T20:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.056889753667336465,
+    "price": 10560.944285714286,
+    "pnl": -43.12950386351115,
+    "reason": "stop_loss",
+    "entry_price": 9802.82
+  },
+  {
+    "timestamp": "2025-05-23T08:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.050930775843112314,
+    "price": 11486.83,
+    "pnl": -29.453267670071813,
+    "reason": "stop_loss",
+    "entry_price": 10908.53
+  },
+  {
+    "timestamp": "2025-05-23T13:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.046215214918726266,
+    "price": 12448.63,
+    "pnl": -21.211397191247766,
+    "reason": "stop_loss",
+    "entry_price": 11989.66
+  },
+  {
+    "timestamp": "2025-05-24T00:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.04572556585085075,
+    "price": 10855.66,
+    "pnl": 56.669065525934855,
+    "reason": "take_profit",
+    "entry_price": 12094.99
+  },
+  {
+    "timestamp": "2025-05-24T04:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.05548322059407713,
+    "price": 10508.16,
+    "pnl": -27.141836682416617,
+    "reason": "stop_loss",
+    "entry_price": 10018.97
+  },
+  {
+    "timestamp": "2025-05-24T12:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.05362146168634329,
+    "price": 9131.25857142857,
+    "pnl": 64.90188518338745,
+    "reason": "take_profit",
+    "entry_price": 10341.63
+  },
+  {
+    "timestamp": "2025-05-24T20:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.061798427312932266,
+    "price": 7626.75,
+    "pnl": 86.4627976377967,
+    "reason": "take_profit",
+    "entry_price": 9025.86
+  },
+  {
+    "timestamp": "2025-05-25T04:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.06636232365287463,
+    "price": 6476.2071428571435,
+    "pnl": 132.33993543520154,
+    "reason": "take_profit",
+    "entry_price": 8470.41
+  },
+  {
+    "timestamp": "2025-05-26T22:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.09223717733068867,
+    "price": 4726.402857142858,
+    "pnl": 132.7880664375602,
+    "reason": "take_profit",
+    "entry_price": 6166.04
+  },
+  {
+    "timestamp": "2025-05-27T14:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.10929019161539152,
+    "price": 4331.17,
+    "pnl": 102.03550869596182,
+    "reason": "take_profit",
+    "entry_price": 5264.79
+  },
+  {
+    "timestamp": "2025-05-28T01:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.13649585519992435,
+    "price": 3459.5471428571427,
+    "pnl": 108.26344249852974,
+    "reason": "take_profit",
+    "entry_price": 4252.71
+  },
+  {
+    "timestamp": "2025-05-28T09:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.16378655505401202,
+    "price": 3176.391428571428,
+    "pnl": 65.63722795710243,
+    "reason": "take_profit",
+    "entry_price": 3577.14
+  },
+  {
+    "timestamp": "2025-05-28T15:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.1866596285596329,
+    "price": 3410.702857142857,
+    "pnl": -47.47367664479585,
+    "reason": "stop_loss",
+    "entry_price": 3156.37
+  },
+  {
+    "timestamp": "2025-05-28T19:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.17147552407696853,
+    "price": 3681.02,
+    "pnl": -44.42073451213873,
+    "reason": "stop_loss",
+    "entry_price": 3421.97
+  },
+  {
+    "timestamp": "2025-05-29T02:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.15271522163174892,
+    "price": 3195.9785714285713,
+    "pnl": 96.484168039325,
+    "reason": "take_profit",
+    "entry_price": 3827.77
+  },
+  {
+    "timestamp": "2025-05-30T00:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.19313911916526683,
+    "price": 3448.1,
+    "pnl": -76.575797966645,
+    "reason": "stop_loss",
+    "entry_price": 3051.62
+  },
+  {
+    "timestamp": "2025-05-31T13:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.1670045300931289,
+    "price": 3951.9042857142854,
+    "pnl": -74.43463479620793,
+    "reason": "stop_loss",
+    "entry_price": 3506.2
+  },
+  {
+    "timestamp": "2025-06-01T08:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.14555190483352937,
+    "price": 3036.13,
+    "pnl": 139.88265814026335,
+    "reason": "take_profit",
+    "entry_price": 3997.18
+  },
+  {
+    "timestamp": "2025-06-03T09:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.19144044376901137,
+    "price": 1887.09,
+    "pnl": 227.47527849965243,
+    "reason": "take_profit",
+    "entry_price": 3075.32
+  },
+  {
+    "timestamp": "2025-06-25T20:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.3179553075068897,
+    "price": 471.06,
+    "pnl": 450.3328202343082,
+    "reason": "take_profit",
+    "entry_price": 1887.4
+  },
+  {
+    "timestamp": "2025-06-26T11:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.1754940179673987,
+    "price": 469.72999999999996,
+    "pnl": 70.60017071912198,
+    "reason": "take_profit",
+    "entry_price": 529.79
+  },
+  {
+    "timestamp": "2025-06-26T16:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.3737316734908043,
+    "price": 492.79,
+    "pnl": -50.66322411834086,
+    "reason": "stop_loss",
+    "entry_price": 455.91
+  },
+  {
+    "timestamp": "2025-06-26T21:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.285001635345639,
+    "price": 400.59,
+    "pnl": 109.00668872637061,
+    "reason": "take_profit",
+    "entry_price": 485.42
+  },
+  {
+    "timestamp": "2025-06-28T02:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.5370422726675386,
+    "price": 300.89,
+    "pnl": 166.7383457389746,
+    "reason": "take_profit",
+    "entry_price": 409.37
+  },
+  {
+    "timestamp": "2025-06-28T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 2.0502258078606044,
+    "price": 325.17,
+    "pnl": -29.113206471620558,
+    "reason": "stop_loss",
+    "entry_price": 310.97
+  },
+  {
+    "timestamp": "2025-06-28T08:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.9693593162440595,
+    "price": 340.53142857142853,
+    "pnl": -34.52568218421007,
+    "reason": "stop_loss",
+    "entry_price": 323.0
+  },
+  {
+    "timestamp": "2025-06-28T11:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.8654846293674914,
+    "price": 360.1557142857143,
+    "pnl": -37.4882461161607,
+    "reason": "stop_loss",
+    "entry_price": 340.06
+  },
+  {
+    "timestamp": "2025-06-28T15:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.7433448320914686,
+    "price": 383.34,
+    "pnl": -35.79086940283781,
+    "reason": "stop_loss",
+    "entry_price": 362.81
+  },
+  {
+    "timestamp": "2025-06-28T17:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.6459971270322797,
+    "price": 402.45,
+    "pnl": -31.718364637912,
+    "reason": "stop_loss",
+    "entry_price": 383.18
+  },
+  {
+    "timestamp": "2025-06-28T23:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.5037601276460377,
+    "price": 361.0671428571429,
+    "pnl": 86.16975177162543,
+    "reason": "take_profit",
+    "entry_price": 418.37
+  },
+  {
+    "timestamp": "2025-06-29T07:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.733074023295398,
+    "price": 400.34,
+    "pnl": -60.38029897161162,
+    "reason": "stop_loss",
+    "entry_price": 365.5
+  },
+  {
+    "timestamp": "2025-06-29T09:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.5577437429989691,
+    "price": 443.24,
+    "pnl": -60.035443855180304,
+    "reason": "stop_loss",
+    "entry_price": 404.7
+  },
+  {
+    "timestamp": "2025-06-29T20:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.3935148208736696,
+    "price": 475.5442857142857,
+    "pnl": -35.26189717447899,
+    "reason": "stop_loss",
+    "entry_price": 450.24
+  },
+  {
+    "timestamp": "2025-06-30T06:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.4048897334412584,
+    "price": 383.81,
+    "pnl": 86.4428652986406,
+    "reason": "take_profit",
+    "entry_price": 445.34
+  },
+  {
+    "timestamp": "2025-06-30T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.636043030974132,
+    "price": 422.7085714285714,
+    "pnl": -61.594682911846085,
+    "reason": "stop_loss",
+    "entry_price": 385.06
+  },
+  {
+    "timestamp": "2025-06-30T18:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.4728301550859337,
+    "price": 345.38,
+    "pnl": 118.20934824719703,
+    "reason": "take_profit",
+    "entry_price": 425.64
+  },
+  {
+    "timestamp": "2025-07-02T08:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 1.8703832303433816,
+    "price": 232.8757142857143,
+    "pnl": 197.23992756783957,
+    "reason": "take_profit",
+    "entry_price": 338.33
+  },
+  {
+    "timestamp": "2025-07-02T19:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 2.5341546892122135,
+    "price": 267.7471428571429,
+    "pnl": -35.851048410383704,
+    "reason": "stop_loss",
+    "entry_price": 253.6
+  },
+  {
+    "timestamp": "2025-07-02T21:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 2.46232984299705,
+    "price": 276.03714285714284,
+    "pnl": -38.82390639594063,
+    "reason": "stop_loss",
+    "entry_price": 260.27
+  },
+  {
+    "timestamp": "2025-07-03T05:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 2.3064395954856205,
+    "price": 243.63,
+    "pnl": 77.01201809326484,
+    "reason": "take_profit",
+    "entry_price": 277.02
+  },
+  {
+    "timestamp": "2025-07-03T13:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 2.6665797890390257,
+    "price": 199.36428571428576,
+    "pnl": 111.15828320594102,
+    "reason": "take_profit",
+    "entry_price": 241.05
+  },
+  {
+    "timestamp": "2025-07-04T08:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.321559736207159,
+    "price": 143.71,
+    "pnl": 170.9938952199445,
+    "reason": "take_profit",
+    "entry_price": 195.19
+  },
+  {
+    "timestamp": "2025-07-04T13:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.948305316520459,
+    "price": 139.27,
+    "pnl": -32.26295066371345,
+    "reason": "stop_loss",
+    "entry_price": 132.75
+  },
+  {
+    "timestamp": "2025-07-04T16:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.8897397459916965,
+    "price": 118.73,
+    "pnl": 74.71522331875306,
+    "reason": "take_profit",
+    "entry_price": 134.01
+  },
+  {
+    "timestamp": "2025-07-04T18:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.687997306873301,
+    "price": 125.31714285714285,
+    "pnl": -53.79220310214464,
+    "reason": "stop_loss",
+    "entry_price": 115.86
+  },
+  {
+    "timestamp": "2025-07-05T00:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.317353691122138,
+    "price": 134.22714285714287,
+    "pnl": -57.41222742500161,
+    "reason": "stop_loss",
+    "entry_price": 123.43
+  },
+  {
+    "timestamp": "2025-07-05T22:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.773905801224852,
+    "price": 148.90285714285713,
+    "pnl": -57.39598746158332,
+    "reason": "stop_loss",
+    "entry_price": 136.88
+  },
+  {
+    "timestamp": "2025-07-06T03:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.411626572512388,
+    "price": 161.1742857142857,
+    "pnl": -60.458191014444715,
+    "reason": "stop_loss",
+    "entry_price": 147.47
+  },
+  {
+    "timestamp": "2025-07-06T21:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.982034863479852,
+    "price": 178.16285714285715,
+    "pnl": -61.89219902094399,
+    "reason": "stop_loss",
+    "entry_price": 162.62
+  },
+  {
+    "timestamp": "2025-07-07T15:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.706365837930088,
+    "price": 155.09,
+    "pnl": 69.64261409470632,
+    "reason": "take_profit",
+    "entry_price": 173.88
+  },
+  {
+    "timestamp": "2025-07-07T22:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.9670820494145276,
+    "price": 139.66,
+    "pnl": 93.90083210964193,
+    "reason": "take_profit",
+    "entry_price": 163.33
+  },
+  {
+    "timestamp": "2025-07-08T04:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.611319608630687,
+    "price": 153.43714285714285,
+    "pnl": -54.907641339909624,
+    "reason": "stop_loss",
+    "entry_price": 141.53
+  },
+  {
+    "timestamp": "2025-07-08T14:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.309651206177865,
+    "price": 164.49285714285716,
+    "pnl": -59.01143830173551,
+    "reason": "stop_loss",
+    "entry_price": 150.8
+  },
+  {
+    "timestamp": "2025-07-09T01:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.025035564472069,
+    "price": 174.62,
+    "pnl": -55.9077439905171,
+    "reason": "stop_loss",
+    "entry_price": 160.73
+  },
+  {
+    "timestamp": "2025-07-09T07:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.8629526566990835,
+    "price": 174.53,
+    "pnl": -30.053771669118873,
+    "reason": "stop_loss",
+    "entry_price": 166.75
+  },
+  {
+    "timestamp": "2025-07-09T20:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.875304323401915,
+    "price": 177.2,
+    "pnl": -44.06221015707968,
+    "reason": "stop_loss",
+    "entry_price": 165.83
+  },
+  {
+    "timestamp": "2025-07-10T02:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.806915424528253,
+    "price": 179.48,
+    "pnl": -42.827798525942846,
+    "reason": "stop_loss",
+    "entry_price": 168.23
+  },
+  {
+    "timestamp": "2025-07-10T14:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.1896842477999794,
+    "price": 212.09571428571428,
+    "pnl": -38.23064405577398,
+    "reason": "stop_loss",
+    "entry_price": 200.11
+  },
+  {
+    "timestamp": "2025-07-10T19:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.2283584789829365,
+    "price": 211.06857142857143,
+    "pnl": -45.030988841127694,
+    "reason": "stop_loss",
+    "entry_price": 197.12
+  },
+  {
+    "timestamp": "2025-07-11T01:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.0059121363254997,
+    "price": 189.46,
+    "pnl": 64.62711093099824,
+    "reason": "take_profit",
+    "entry_price": 210.96
+  },
+  {
+    "timestamp": "2025-07-11T15:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.6935209401450697,
+    "price": 183.48428571428573,
+    "pnl": -40.349078041841985,
+    "reason": "stop_loss",
+    "entry_price": 172.56
+  },
+  {
+    "timestamp": "2025-07-12T07:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.488926000044708,
+    "price": 191.04,
+    "pnl": -31.19099844039968,
+    "reason": "stop_loss",
+    "entry_price": 182.1
+  },
+  {
+    "timestamp": "2025-07-12T10:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.3556375962540015,
+    "price": 165.5442857142857,
+    "pnl": 78.27264381662195,
+    "reason": "take_profit",
+    "entry_price": 188.87
+  },
+  {
+    "timestamp": "2025-07-12T15:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.843391369889965,
+    "price": 180.49,
+    "pnl": -55.99821225929687,
+    "reason": "stop_loss",
+    "entry_price": 165.92
+  },
+  {
+    "timestamp": "2025-07-13T06:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 3.451461686345235,
+    "price": 199.86142857142858,
+    "pnl": -54.91768608930467,
+    "reason": "stop_loss",
+    "entry_price": 183.95
+  },
+  {
+    "timestamp": "2025-07-13T19:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.391482785481281,
+    "price": 103.58,
+    "pnl": 73.70156967752912,
+    "reason": "take_profit",
+    "entry_price": 117.25
+  },
+  {
+    "timestamp": "2025-07-14T15:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.916945799212025,
+    "price": 116.11714285714285,
+    "pnl": -51.22384506174982,
+    "reason": "stop_loss",
+    "entry_price": 107.46
+  },
+  {
+    "timestamp": "2025-07-15T02:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.381288142929304,
+    "price": 98.68285714285716,
+    "pnl": 102.22909960667693,
+    "reason": "take_profit",
+    "entry_price": 117.68
+  },
+  {
+    "timestamp": "2025-07-18T14:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.351412157909577,
+    "price": 110.59,
+    "pnl": -64.02223455172852,
+    "reason": "stop_loss",
+    "entry_price": 100.51
+  },
+  {
+    "timestamp": "2025-07-19T10:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.588351071818753,
+    "price": 123.33,
+    "pnl": -54.03935486448735,
+    "reason": "stop_loss",
+    "entry_price": 113.66
+  },
+  {
+    "timestamp": "2025-07-19T15:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.098469333218095,
+    "price": 136.2642857142857,
+    "pnl": -62.274161141449554,
+    "reason": "stop_loss",
+    "entry_price": 124.05
+  },
+  {
+    "timestamp": "2025-07-20T00:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.0071510989880945,
+    "price": 133.24,
+    "pnl": -37.80399079736017,
+    "reason": "stop_loss",
+    "entry_price": 125.69
+  },
+  {
+    "timestamp": "2025-07-20T07:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.960133554893807,
+    "price": 134.24285714285716,
+    "pnl": -38.405605525035,
+    "reason": "stop_loss",
+    "entry_price": 126.5
+  },
+  {
+    "timestamp": "2025-07-20T18:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.624188233315983,
+    "price": 121.68,
+    "pnl": 62.84271809076422,
+    "reason": "take_profit",
+    "entry_price": 135.27
+  },
+  {
+    "timestamp": "2025-07-21T02:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 4.910998687009849,
+    "price": 111.92714285714285,
+    "pnl": 78.98289031193838,
+    "reason": "take_profit",
+    "entry_price": 128.01
+  },
+  {
+    "timestamp": "2025-07-21T06:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.700134296684903,
+    "price": 93.88857142857145,
+    "pnl": 97.42343817934014,
+    "reason": "take_profit",
+    "entry_price": 110.98
+  },
+  {
+    "timestamp": "2025-07-21T19:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.404198066383847,
+    "price": 107.69571428571429,
+    "pnl": -52.23080965855052,
+    "reason": "stop_loss",
+    "entry_price": 99.54
+  },
+  {
+    "timestamp": "2025-07-21T20:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.85491376867245,
+    "price": 114.21,
+    "pnl": -33.841401582926686,
+    "reason": "stop_loss",
+    "entry_price": 108.43
+  },
+  {
+    "timestamp": "2025-07-22T01:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.6170281009486205,
+    "price": 98.26,
+    "pnl": 81.22222633971701,
+    "reason": "take_profit",
+    "entry_price": 112.72
+  },
+  {
+    "timestamp": "2025-07-22T10:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.482282973407443,
+    "price": 106.92142857142856,
+    "pnl": -55.88653963501985,
+    "reason": "stop_loss",
+    "entry_price": 98.3
+  },
+  {
+    "timestamp": "2025-07-22T12:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.014018766218296,
+    "price": 114.99857142857142,
+    "pnl": -57.18472701135568,
+    "reason": "stop_loss",
+    "entry_price": 105.49
+  },
+  {
+    "timestamp": "2025-07-22T18:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.10096652779667,
+    "price": 113.47,
+    "pnl": -60.70461695157688,
+    "reason": "stop_loss",
+    "entry_price": 103.52
+  },
+  {
+    "timestamp": "2025-07-22T22:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.076978268913721,
+    "price": 111.86,
+    "pnl": -51.228926806942624,
+    "reason": "stop_loss",
+    "entry_price": 103.43
+  },
+  {
+    "timestamp": "2025-07-23T04:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.957788887959645,
+    "price": 111.7042857142857,
+    "pnl": -39.52567370812082,
+    "reason": "stop_loss",
+    "entry_price": 105.07
+  },
+  {
+    "timestamp": "2025-07-23T06:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.526588285354439,
+    "price": 99.41,
+    "pnl": 74.60894185228493,
+    "reason": "take_profit",
+    "entry_price": 112.91
+  },
+  {
+    "timestamp": "2025-07-23T23:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.241764139863272,
+    "price": 108.33,
+    "pnl": -48.43608972533902,
+    "reason": "stop_loss",
+    "entry_price": 100.57
+  },
+  {
+    "timestamp": "2025-07-24T08:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 5.6987823370217825,
+    "price": 91.47,
+    "pnl": 104.05976547401778,
+    "reason": "take_profit",
+    "entry_price": 109.73
+  },
+  {
+    "timestamp": "2025-07-25T21:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 6.974926958643687,
+    "price": 66.47999999999999,
+    "pnl": 166.8402528507571,
+    "reason": "take_profit",
+    "entry_price": 90.4
+  },
+  {
+    "timestamp": "2025-07-26T03:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 9.346909007261699,
+    "price": 71.31,
+    "pnl": -27.666850661494703,
+    "reason": "stop_loss",
+    "entry_price": 68.35
+  },
+  {
+    "timestamp": "2025-07-26T04:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.668376638835719,
+    "price": 77.33,
+    "pnl": -32.853147461187305,
+    "reason": "stop_loss",
+    "entry_price": 73.54
+  },
+  {
+    "timestamp": "2025-07-26T09:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.092543313863313,
+    "price": 82.18,
+    "pnl": -29.21408136304667,
+    "reason": "stop_loss",
+    "entry_price": 78.57
+  },
+  {
+    "timestamp": "2025-07-26T14:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 7.554725260834402,
+    "price": 75.26,
+    "pnl": 65.8016570218676,
+    "reason": "take_profit",
+    "entry_price": 83.97
+  },
+  {
+    "timestamp": "2025-07-26T15:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.551130104687404,
+    "price": 79.67,
+    "pnl": -43.61076353390583,
+    "reason": "stop_loss",
+    "entry_price": 74.57
+  },
+  {
+    "timestamp": "2025-07-27T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.278827199036469,
+    "price": 83.26,
+    "pnl": -53.812376793737045,
+    "reason": "stop_loss",
+    "entry_price": 76.76
+  },
+  {
+    "timestamp": "2025-07-27T16:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 7.936887788960512,
+    "price": 71.03,
+    "pnl": 69.05092376395648,
+    "reason": "take_profit",
+    "entry_price": 79.73
+  },
+  {
+    "timestamp": "2025-07-27T23:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 9.253548530185887,
+    "price": 71.61,
+    "pnl": -26.372613311029724,
+    "reason": "stop_loss",
+    "entry_price": 68.76
+  },
+  {
+    "timestamp": "2025-07-28T05:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.833500047985307,
+    "price": 64.78,
+    "pnl": 62.717850340695634,
+    "reason": "take_profit",
+    "entry_price": 71.88
+  },
+  {
+    "timestamp": "2025-07-28T09:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 9.883740423379077,
+    "price": 69.35,
+    "pnl": -47.3431166279857,
+    "reason": "stop_loss",
+    "entry_price": 64.56
+  },
+  {
+    "timestamp": "2025-07-28T14:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 9.314719019032221,
+    "price": 57.11285714285714,
+    "pnl": 103.73935638910747,
+    "reason": "take_profit",
+    "entry_price": 68.25
+  },
+  {
+    "timestamp": "2025-07-30T00:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 11.07505273885228,
+    "price": 64.44,
+    "pnl": -72.76309649425949,
+    "reason": "stop_loss",
+    "entry_price": 57.87
+  },
+  {
+    "timestamp": "2025-07-30T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 9.744270506460115,
+    "price": 72.68,
+    "pnl": -70.93828928702965,
+    "reason": "stop_loss",
+    "entry_price": 65.4
+  },
+  {
+    "timestamp": "2025-07-30T17:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.55108281362175,
+    "price": 82.85,
+    "pnl": -74.73646379105405,
+    "reason": "stop_loss",
+    "entry_price": 74.11
+  },
+  {
+    "timestamp": "2025-07-31T02:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 8.941241875650526,
+    "price": 60.42,
+    "pnl": 89.77006843153121,
+    "reason": "take_profit",
+    "entry_price": 70.46
+  },
+  {
+    "timestamp": "2025-07-31T07:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 10.825624389662943,
+    "price": 62.331428571428575,
+    "pnl": -40.28678790724571,
+    "reason": "stop_loss",
+    "entry_price": 58.61
+  },
+  {
+    "timestamp": "2025-07-31T11:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 10.471492866796572,
+    "price": 51.84,
+    "pnl": 89.63597893977861,
+    "reason": "take_profit",
+    "entry_price": 60.4
+  },
+  {
+    "timestamp": "2025-08-01T07:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 13.02307504760133,
+    "price": 37.975714285714275,
+    "pnl": 142.39802344905806,
+    "reason": "take_profit",
+    "entry_price": 48.91
+  },
+  {
+    "timestamp": "2025-08-01T22:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 21.151842609413574,
+    "price": 32.27,
+    "pnl": -38.496353549132785,
+    "reason": "stop_loss",
+    "entry_price": 30.45
+  },
+  {
+    "timestamp": "2025-08-02T10:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 19.831731094839924,
+    "price": 28.26,
+    "pnl": 81.7067321107405,
+    "reason": "take_profit",
+    "entry_price": 32.38
+  },
+  {
+    "timestamp": "2025-08-02T14:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 23.482569630346056,
+    "price": 29.57,
+    "pnl": -48.139267742209434,
+    "reason": "stop_loss",
+    "entry_price": 27.52
+  },
+  {
+    "timestamp": "2025-08-02T20:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 20.924198874221606,
+    "price": 25.61,
+    "pnl": 107.96886619098349,
+    "reason": "take_profit",
+    "entry_price": 30.77
+  },
+  {
+    "timestamp": "2025-08-03T00:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 25.958991893097988,
+    "price": 28.1,
+    "pnl": -80.21328494967278,
+    "reason": "stop_loss",
+    "entry_price": 25.01
+  },
+  {
+    "timestamp": "2025-08-04T01:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 22.80757052477527,
+    "price": 20.892857142857142,
+    "pnl": 168.71085739612334,
+    "reason": "take_profit",
+    "entry_price": 28.29
+  },
+  {
+    "timestamp": "2025-08-04T19:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 31.038211584139923,
+    "price": 25.49,
+    "pnl": -137.49927731773985,
+    "reason": "stop_loss",
+    "entry_price": 21.06
+  },
+  {
+    "timestamp": "2025-08-06T03:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 25.295129673949194,
+    "price": 15.781428571428572,
+    "pnl": 247.6031836084284,
+    "reason": "take_profit",
+    "entry_price": 25.57
+  },
+  {
+    "timestamp": "2025-08-09T06:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 43.1683137992123,
+    "price": 20.71,
+    "pnl": -234.83562706771497,
+    "reason": "stop_loss",
+    "entry_price": 15.27
+  },
+  {
+    "timestamp": "2025-08-10T21:30:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 29.509553050778656,
+    "price": 28.06,
+    "pnl": -180.5984646707653,
+    "reason": "stop_loss",
+    "entry_price": 21.94
+  },
+  {
+    "timestamp": "2025-08-16T20:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 22.678874546172295,
+    "price": 14.41,
+    "pnl": 311.6077362644073,
+    "reason": "take_profit",
+    "entry_price": 28.15
+  }
+]

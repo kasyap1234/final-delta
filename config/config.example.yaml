@@ -1,0 +1,217 @@
+# Delta Exchange India Trading Bot Configuration - EXAMPLE FILE
+# 
+# This is an example configuration file. Copy this to config.yaml and customize
+# for your needs. DO NOT commit config.yaml with real API credentials to git!
+#
+# All sensitive values (API keys) should be set via environment variables.
+# See .env.example for environment variable configuration.
+
+# =============================================================================
+# EXCHANGE SETTINGS
+# =============================================================================
+exchange:
+  # Exchange identifier (must be "delta" or "delta_exchange")
+  exchange_id: "delta"
+  
+  # API credentials - RECOMMENDED: Use environment variables DELTA_API_KEY and DELTA_API_SECRET
+  # instead of hardcoding them here for security
+  api_key: null
+  api_secret: null
+  
+  # Sandbox mode for testing (no real trades)
+  # When true, the bot simulates trades without executing on the exchange
+  sandbox: true
+  
+  # Use testnet instead of mainnet
+  # Testnet uses fake money for testing strategies
+  testnet: true
+
+# =============================================================================
+# TRADING SETTINGS
+# =============================================================================
+trading:
+  # Candlestick timeframe for analysis
+  # Valid values: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d
+  timeframe: "15m"
+  
+  # List of trading pairs to monitor and trade
+  # These should be available on Delta Exchange India
+  symbols:
+    - "BTC/USD"
+    - "ETH/USD"
+    - "SOL/USD"
+  
+  # Maximum number of concurrent positions
+  # Bot will not open new positions if this limit is reached
+  max_positions: 5
+
+# =============================================================================
+# STRATEGY SETTINGS (Technical Indicators)
+# =============================================================================
+strategy:
+  # EMA periods for trend analysis
+  # Must be ordered: fast < medium < slow < trend
+  ema_fast: 9           # Fast EMA period (short-term trend)
+  ema_medium: 21        # Medium EMA period (intermediate trend)
+  ema_slow: 50          # Slow EMA period (long-term trend)
+  ema_trend: 200        # Trend EMA period (major trend)
+  
+  # RSI (Relative Strength Index) settings
+  rsi_period: 14
+  rsi_long_threshold: 60.0    # RSI above this = bullish signal for longs
+  rsi_short_threshold: 40.0   # RSI below this = bearish signal for shorts
+  
+  # ATR (Average True Range) settings for stop-loss calculation
+  atr_period: 14
+  atr_multiplier: 2.0         # Multiplier for ATR-based stop-loss
+  
+  # Pivot/Resistance detection settings
+  pivot_lookback: 10          # Lookback period for pivot detection
+
+# =============================================================================
+# RISK MANAGEMENT SETTINGS
+# =============================================================================
+risk_management:
+  # Total trading capital
+  # Used for position sizing calculations
+  account_balance: 10000.0
+  
+  # Risk per trade as percentage of account balance
+  # Recommended range: 1.0% - 2.0%
+  # This means you risk losing this percentage if stop-loss is hit
+  risk_per_trade_percent: 1.0
+  
+  # Maximum allowed risk per trade percentage
+  # Hard limit that cannot be exceeded
+  max_risk_per_trade_percent: 2.0
+  
+  # Risk:Reward ratio for take profit calculation
+  # 2.0 means 2:1 risk:reward (take profit is 2x the stop-loss distance)
+  take_profit_r_ratio: 2.0
+
+# =============================================================================
+# HEDGE CONFIGURATION
+# =============================================================================
+hedge:
+  # Trigger hedge when position moves this percentage toward stop-loss
+  # 50.0 means hedge triggers at 50% of the stop-loss distance
+  # Example: If stop is $100 away, hedge triggers at $50 loss
+  hedge_trigger_percent: 50.0
+  
+  # Hedge position size as ratio of original position
+  # 0.5 means hedge size is 50% of the original position
+  hedge_size_ratio: 0.5
+  
+  # Number of chunks to split hedge orders into
+  # More chunks = less slippage but slower execution
+  hedge_chunks: 3
+  
+  # Historical data lookback for correlation calculation (days)
+  # Longer period = more stable correlations but slower to adapt
+  correlation_lookback_days: 30
+
+# =============================================================================
+# EXECUTION SETTINGS
+# =============================================================================
+execution:
+  # Order execution timeout in seconds
+  order_timeout: 30
+  
+  # Maximum slippage allowed for market orders (percentage)
+  max_slippage_percent: 0.5
+  
+  # Retry attempts for failed orders
+  max_retries: 3
+  
+  # Delay between retries in seconds
+  retry_delay: 1.0
+
+# =============================================================================
+# WEBSOCKET SETTINGS
+# =============================================================================
+websocket:
+  # WebSocket connection timeout
+  connection_timeout: 30
+  
+  # Ping interval in seconds
+  ping_interval: 30
+  
+  # Reconnect delay in seconds
+  reconnect_delay: 5
+  
+  # Maximum reconnect attempts (0 = unlimited)
+  max_reconnect_attempts: 0
+
+# =============================================================================
+# LOGGING SETTINGS
+# =============================================================================
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  
+  # Log to file
+  file_enabled: true
+  
+  # Log file path
+  file_path: "logs/trading_bot.log"
+  
+  # Log to console
+  console_enabled: true
+  
+  # Maximum log file size in MB
+  max_file_size: 10
+  
+  # Number of backup log files to keep
+  backup_count: 5
+
+# =============================================================================
+# DATABASE SETTINGS
+# =============================================================================
+database:
+  # Database file path
+  path: "data/trading_bot.db"
+  
+  # Enable WAL mode for better concurrency
+  wal_mode: true
+  
+  # Backup interval in hours (0 = disabled)
+  backup_interval_hours: 24
+
+# =============================================================================
+# CIRCUIT BREAKER SETTINGS
+# =============================================================================
+circuit_breaker:
+  # Enable circuit breaker
+  enabled: true
+  
+  # Number of failures before opening circuit
+  failure_threshold: 5
+  
+  # Time window for counting failures (seconds)
+  failure_window: 300
+  
+  # Cooldown period before attempting reset (seconds)
+  cooldown_period: 300
+
+# =============================================================================
+# NOTIFICATION SETTINGS (Optional)
+# =============================================================================
+notifications:
+  # Enable notifications
+  enabled: false
+  
+  # Notification channels: console, webhook
+  channels:
+    - "console"
+  
+  # Webhook URL for external notifications
+  webhook_url: null
+  
+  # Notify on trade execution
+  notify_on_trade: true
+  
+  # Notify on hedge activation
+  notify_on_hedge: true
+  
+  # Notify on errors
+  notify_on_error: true

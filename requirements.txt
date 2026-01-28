@@ -1,0 +1,54 @@
+# Delta Exchange India Trading Bot - Python Dependencies
+# Core dependencies for running the trading bot
+
+# Exchange Integration
+ccxt>=4.0.0
+
+# WebSocket Data Feeds
+websockets>=11.0
+
+# Numerical Calculations
+numpy>=1.24.0
+
+# Configuration Files
+pyyaml>=6.0
+
+# Configuration Validation
+pydantic>=2.0.0
+
+# Optional but Recommended
+# Data Manipulation
+pandas>=2.0.0
+
+# Colored Console Output
+colorama>=0.4.6
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Async HTTP
+aiohttp>=3.8.0
+
+# Development Dependencies
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Code Formatting
+black>=23.0.0
+
+# Linting
+flake8>=6.0.0
+
+# Type Checking (optional)
+mypy>=1.0.0
+
+# Additional Utilities
+# Async support
+aiosqlite>=0.19.0
+
+# Date/Time handling
+python-dateutil>=2.8.2
+
+# Logging enhancements
+structlog>=23.0.0
