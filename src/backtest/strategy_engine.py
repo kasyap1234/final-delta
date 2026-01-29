@@ -337,6 +337,50 @@ class BacktestStrategyEngine:
 
         return None
 
+    def calculate_dynamic_atr_multiplier(self, indicators: IndicatorValues) -> float:
+        """
+        Calculate dynamic ATR multiplier based on market volatility.
+        Increases multiplier in high volatility conditions to avoid premature stop-outs.
+
+        Args:
+            indicators: IndicatorValues object with ATR and price data
+
+        Returns:
+            Adjusted ATR multiplier
+        """
+        base_multiplier = self.config.stop_loss_atr_multiplier  # 2.0
+
+        if indicators.atr and indicators.ema_50:
+            # Calculate ATR as percentage of price
+            atr_percent = indicators.atr / indicators.ema_50
+
+            # High volatility regime (choppy market) - widen stops
+            if atr_percent > 0.03:  # 3% ATR
+                return base_multiplier * 1.5  # 3.0
+            # Medium-high volatility
+            elif atr_percent > 0.025:  # 2.5% ATR
+                return base_multiplier * 1.25  # 2.5
+            # Medium volatility
+            elif atr_percent > 0.02:  # 2% ATR
+                return base_multiplier * 1.1  # 2.2
+
+        return base_multiplier
+
+    def calculate_adaptive_rr_ratio(self, indicators: IndicatorValues) -> float:
+        """Reduce profit targets in ranging markets."""
+        base_rr = self.config.take_profit_rr_ratio  # 2.0
+
+        # Detect ranging market (EMAs close together)
+        if indicators.ema_9 and indicators.ema_21 and indicators.ema_50:
+            ema_range = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+
+            if ema_range < 0.01:  # Tight EMAs = ranging
+                return 1.5  # Lower target
+            elif ema_range < 0.02:  # Medium range
+                return 1.75
+
+        return base_rr
+
     def calculate_position_size(self, symbol: str, signal: StrategySignal,
                                 current_price: float) -> Dict[str, Any]:
         """
@@ -358,23 +402,29 @@ class BacktestStrategyEngine:
         # Use SignalDetector's methods for stop loss and take profit (same as live trading)
         position_type = signal.direction.value
 
+        # Use dynamic ATR multiplier based on volatility
+        atr_multiplier = self.calculate_dynamic_atr_multiplier(indicators)
+
         stop_loss = self.signal_detector.get_stop_loss_price(
             indicators=indicators,
             entry_price=current_price,
             position_type=position_type,
-            multiplier=self.config.stop_loss_atr_multiplier
+            multiplier=atr_multiplier
         )
+
+        # Use adaptive R:R ratio based on market conditions
+        adaptive_rr = self.calculate_adaptive_rr_ratio(indicators)
 
         take_profit = self.signal_detector.get_take_profit_price(
             indicators=indicators,
             entry_price=current_price,
             position_type=position_type,
-            risk_reward_ratio=self.config.take_profit_rr_ratio
+            risk_reward_ratio=adaptive_rr
         )
 
         # Calculate position size based on risk
         atr = indicators.atr if indicators.atr else current_price * 0.02  # Default 2% if no ATR
-        stop_distance = atr * self.config.stop_loss_atr_multiplier
+        stop_distance = atr * atr_multiplier
 
         risk_amount = self.account_balance * (self.config.max_risk_per_trade_percent / 100)
 
@@ -395,7 +445,8 @@ class BacktestStrategyEngine:
             'stop_loss': stop_loss,
             'take_profit': take_profit,
             'risk_amount': risk_amount,
-            'atr': atr
+            'atr': atr,
+            'atr_multiplier': atr_multiplier
         }
 
     def process_candle(self, symbol: str, candle: Dict[str, float], timestamp: datetime,

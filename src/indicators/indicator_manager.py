@@ -19,7 +19,8 @@ from .technical_indicators import (
     calculate_pivot_points_from_ohlcv,
     calculate_all_emas,
     CrossoverType,
-    calculate_ema_crossover
+    calculate_ema_crossover,
+    calculate_adx
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,10 @@ class IndicatorValues:
     # ATR
     atr: Optional[float] = None
     atr_period: int = 14
+    
+    # ADX
+    adx: Optional[float] = None
+    adx_period: int = 14
     
     # Pivot Points
     pivot: Optional[float] = None
@@ -72,6 +77,8 @@ class IndicatorValues:
             'rsi_period': self.rsi_period,
             'atr': self.atr,
             'atr_period': self.atr_period,
+            'adx': self.adx,
+            'adx_period': self.adx_period,
             'pivot': self.pivot,
             'r1': self.r1,
             's1': self.s1,
@@ -208,6 +215,11 @@ class IndicatorManager:
         atr_values = calculate_atr(highs, lows, closes, self.atr_period)
         indicators.atr = atr_values[-1] if len(atr_values) > 0 and not np.isnan(atr_values[-1]) else None
         indicators.atr_period = self.atr_period
+        
+        # Calculate ADX
+        adx_values = calculate_adx(highs, lows, closes, self.atr_period)
+        indicators.adx = adx_values[-1] if len(adx_values) > 0 and not np.isnan(adx_values[-1]) else None
+        indicators.adx_period = self.atr_period
         
         # Calculate Pivot Points
         pivot_data = calculate_pivot_points_from_ohlcv(highs, lows, closes, self.pivot_lookback)

@@ -75,16 +75,31 @@ class HistoricalDataLoader:
         """
         historical_data = {}
         
+        # Check if year-specific symbol files are configured
+        symbol_files = getattr(self.config, 'symbol_files', {})
+        year = getattr(self.config, 'data_year', None)
+        
         for symbol in self.config.symbols:
-            # Convert symbol to filename (e.g., BTC/USD -> BTC_USD.csv)
-            # Also try with timeframe suffix (e.g., BTC_USDT_15m.csv)
-            filename_base = f"{symbol.replace('/', '_')}.csv"
-            filename_with_timeframe = f"{symbol.replace('/', '_')}_{self.config.timeframe}.csv"
+            # Convert symbol to base filename (e.g., BTC/USD -> BTC_USD)
+            symbol_base = symbol.replace('/', '_')
             
-            filepath = self.data_dir / filename_base
-            if not filepath.exists():
-                # Try with timeframe suffix
-                filepath = self.data_dir / filename_with_timeframe
+            # Try year-specific file first if configured
+            filepath = None
+            if symbol_base in symbol_files:
+                filepath = self.data_dir / symbol_files[symbol_base]
+            elif year:
+                # Try year-specific filename pattern: BTC_USDT_2023_15m.csv
+                year_filename = f"{symbol_base}_{year}_{self.config.timeframe}.csv"
+                filepath = self.data_dir / year_filename
+            
+            # Fallback to default patterns
+            if not filepath or not filepath.exists():
+                filename_base = f"{symbol_base}.csv"
+                filename_with_timeframe = f"{symbol_base}_{self.config.timeframe}.csv"
+                
+                filepath = self.data_dir / filename_base
+                if not filepath.exists():
+                    filepath = self.data_dir / filename_with_timeframe
             
             if not filepath.exists():
                 logger.warning(f"CSV file not found: {filepath}")

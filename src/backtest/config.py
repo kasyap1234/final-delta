@@ -172,6 +172,8 @@ class BacktestConfig:
     # Data source
     data_source: str = "api"  # csv, sqlite, or api
     data_dir: str = "data/backtest"
+    data_year: Optional[int] = None  # Year for year-specific data files
+    symbol_files: Dict[str, str] = field(default_factory=dict)  # Symbol to filename mapping
     
     # Output
     output_dir: str = "backtest_results"
@@ -223,6 +225,8 @@ class BacktestConfig:
             fee_config=fee_config,
             data_source=data_config.get('source', 'api'),
             data_dir=data_config.get('data_dir', 'data/backtest'),
+            data_year=data_config.get('year'),
+            symbol_files=data_config.get('symbol_files', {}),
             output_dir=backtest_config.get('output_dir', 'backtest_results'),
             save_trade_log=backtest_config.get('save_trade_log', True),
             save_equity_curve=backtest_config.get('save_equity_curve', True),

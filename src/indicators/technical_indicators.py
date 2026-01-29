@@ -415,3 +415,91 @@ def calculate_all_emas(prices: np.ndarray) -> Dict[str, np.ndarray]:
         'ema_50': calculate_ema(prices, 50),
         'ema_200': calculate_ema(prices, 200)
     }
+
+
+def calculate_adx(highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, period: int = 14) -> np.ndarray:
+    """
+    Calculate Average Directional Index (ADX).
+    
+    ADX measures trend strength regardless of direction.
+    Values above 25 indicate a strong trend, below 20 indicate weak trend.
+    
+    Args:
+        highs: Array of high prices
+        lows: Array of low prices
+        closes: Array of closing prices
+        period: ADX period (default 14)
+        
+    Returns:
+        Array of ADX values (0-100 range)
+    """
+    if len(highs) < period * 2 + 1 or len(lows) < period * 2 + 1 or len(closes) < period * 2 + 1:
+        return np.full(len(highs), np.nan)
+    
+    # Calculate True Range (TR)
+    tr = np.zeros(len(highs))
+    tr[0] = highs[0] - lows[0]
+    
+    for i in range(1, len(highs)):
+        tr1 = highs[i] - lows[i]
+        tr2 = abs(highs[i] - closes[i - 1])
+        tr3 = abs(lows[i] - closes[i - 1])
+        tr[i] = max(tr1, tr2, tr3)
+    
+    # Calculate +DM and -DM
+    plus_dm = np.zeros(len(highs))
+    minus_dm = np.zeros(len(highs))
+    
+    for i in range(1, len(highs)):
+        up_move = highs[i] - highs[i - 1]
+        down_move = lows[i - 1] - lows[i]
+        
+        if up_move > down_move and up_move > 0:
+            plus_dm[i] = up_move
+        else:
+            plus_dm[i] = 0
+            
+        if down_move > up_move and down_move > 0:
+            minus_dm[i] = down_move
+        else:
+            minus_dm[i] = 0
+    
+    # Calculate smoothed TR, +DM, -DM using Wilder's smoothing
+    atr = np.full(len(highs), np.nan)
+    plus_di = np.full(len(highs), np.nan)
+    minus_di = np.full(len(highs), np.nan)
+    dx = np.full(len(highs), np.nan)
+    adx = np.full(len(highs), np.nan)
+    
+    # First values are simple averages
+    if len(tr) >= period:
+        atr[period - 1] = np.mean(tr[:period])
+        plus_di[period - 1] = np.mean(plus_dm[:period])
+        minus_di[period - 1] = np.mean(minus_dm[:period])
+        
+        # Calculate DX
+        if plus_di[period - 1] + minus_di[period - 1] > 0:
+            dx[period - 1] = 100 * abs(plus_di[period - 1] - minus_di[period - 1]) / (plus_di[period - 1] + minus_di[period - 1])
+        else:
+            dx[period - 1] = 0
+        
+        # Calculate remaining values using smoothing
+        for i in range(period, len(highs)):
+            atr[i] = ((atr[i - 1] * (period - 1)) + tr[i]) / period
+            plus_di[i] = ((plus_di[i - 1] * (period - 1)) + plus_dm[i]) / period
+            minus_di[i] = ((minus_di[i - 1] * (period - 1)) + minus_dm[i]) / period
+            
+            # Calculate DX
+            if plus_di[i] + minus_di[i] > 0:
+                dx[i] = 100 * abs(plus_di[i] - minus_di[i]) / (plus_di[i] + minus_di[i])
+            else:
+                dx[i] = 0
+        
+        # Calculate ADX (smoothed DX) - need at least period*2 data points
+        if len(dx) >= period * 2:
+            adx[period * 2 - 1] = np.mean(dx[period:period * 2])
+            
+            for i in range(period * 2, len(highs)):
+                adx[i] = ((adx[i - 1] * (period - 1)) + dx[i]) / period
+    
+    return adx
