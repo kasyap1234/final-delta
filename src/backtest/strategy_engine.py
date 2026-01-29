@@ -89,6 +89,10 @@ class StrategyConfig:
     weak_signal_threshold: float = 0.3
     crossover_lookback: int = 3
 
+    # Regime filters
+    min_adx_for_entry: float = 15.0
+    min_ema_spread_for_entry: float = 0.005
+
 
 class BacktestStrategyEngine:
     """
@@ -381,14 +385,45 @@ class BacktestStrategyEngine:
 
         return base_rr
 
+    def calculate_signal_strength_multiplier(self, signal_confidence: float) -> float:
+        """
+        Calculate position size multiplier based on signal strength.
+        
+        Position sizing based on signal quality:
+        - strength >= 0.8: 100% position (full size)
+        - strength 0.6-0.8: 75% position
+        - strength 0.4-0.6: 50% position
+        - strength < 0.4: 25% position
+        
+        This preserves bull market gains (strong signals = full size)
+        while reducing choppy market losses (weak signals = smaller size).
+        
+        Args:
+            signal_confidence: Signal strength from 0.0 to 1.0
+            
+        Returns:
+            Position size multiplier (0.25 to 1.0)
+        """
+        if signal_confidence >= 0.8:
+            return 1.0  # Full position
+        elif signal_confidence >= 0.6:
+            return 0.75  # 75% position
+        elif signal_confidence >= 0.4:
+            return 0.5  # 50% position
+        else:
+            return 0.25  # 25% position (minimum)
+
     def calculate_position_size(self, symbol: str, signal: StrategySignal,
                                 current_price: float) -> Dict[str, Any]:
         """
         Calculate position size based on risk parameters using SignalDetector methods.
+        
+        Applies signal strength-based position sizing to reduce risk on weak signals
+        while maintaining full exposure on strong signals.
 
         Args:
             symbol: Trading symbol
-            signal: Trading signal
+            signal: Trading signal with confidence (strength)
             current_price: Current market price
 
         Returns:
@@ -440,13 +475,19 @@ class BacktestStrategyEngine:
 
         position_size = min(position_size, max_position_size)
 
+        # Apply signal strength-based position sizing (Fix #6)
+        signal_multiplier = self.calculate_signal_strength_multiplier(signal.confidence)
+        position_size = position_size * signal_multiplier
+
         return {
             'size': position_size,
             'stop_loss': stop_loss,
             'take_profit': take_profit,
             'risk_amount': risk_amount,
             'atr': atr,
-            'atr_multiplier': atr_multiplier
+            'atr_multiplier': atr_multiplier,
+            'signal_strength': signal.confidence,
+            'signal_multiplier': signal_multiplier
         }
 
     def process_candle(self, symbol: str, candle: Dict[str, float], timestamp: datetime,
@@ -473,6 +514,10 @@ class BacktestStrategyEngine:
         if not indicators:
             return None
 
+        # Regime filter: avoid choppy periods
+        if not self._passes_regime_filter(indicators):
+            return None
+
         # Generate entry signal using SignalDetector
         signal = self.generate_signal(symbol, indicators)
         if not signal:
@@ -492,6 +537,19 @@ class BacktestStrategyEngine:
             'take_profit': position_info['take_profit'],
             'atr': position_info['atr']
         }
+
+    def _passes_regime_filter(self, indicators: IndicatorValues) -> bool:
+        """Filter out low-trend conditions using ADX and EMA spread."""
+        adx_ok = True
+        if indicators.adx is not None:
+            adx_ok = indicators.adx >= self.config.min_adx_for_entry
+
+        ema_spread_ok = True
+        if indicators.ema_9 and indicators.ema_50 and indicators.ema_50 > 0:
+            ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+            ema_spread_ok = ema_spread >= self.config.min_ema_spread_for_entry
+
+        return adx_ok and ema_spread_ok
 
     def check_position_exit(self, symbol: str, candle: Dict[str, float],
                            timestamp: datetime, entry_price: float,

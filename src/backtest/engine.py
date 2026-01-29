@@ -140,6 +140,10 @@ class BacktestEngine:
             initial_balance=self.config.initial_balance,
             currency=self.config.initial_currency
         )
+
+        # Initialize fee calculator and attach to account state
+        fee_calculator = self.config.create_fee_calculator()
+        self.account_state.set_fee_calculator(fee_calculator)
         
         # Initialize order simulator
         from src.backtest.mock.order_simulator import SimulatorConfig
@@ -492,7 +496,20 @@ class BacktestEngine:
                 )
     
     def _calculate_exit_fees(self, size: float, price: float) -> float:
-        """Calculate exit fees for a trade."""
+        """Calculate exit fees for a trade (limit/maker)."""
+        fee_calculator = self.account_state.get_fee_calculator() if self.account_state else None
+        if fee_calculator:
+            from src.backtest.fees import OrderType
+
+            fee_result = fee_calculator.calculate_trade_fee(
+                symbol="backtest_exit",
+                amount=size,
+                price=price,
+                order_type=OrderType.LIMIT,
+                metadata={'is_maker': True}
+            )
+            return fee_result['fee_paid']
+
         position_value = size * price
         fee_rate = self.config.fee_rate if hasattr(self.config, 'fee_rate') else 0.001
         return position_value * fee_rate
@@ -575,8 +592,22 @@ class BacktestEngine:
         stop_loss_distance = abs(entry_price - stop_loss)
         risk_amount = position_size * stop_loss_distance
         
-        # Calculate entry fees
-        entry_fees = position_value * (self.config.fee_rate if hasattr(self.config, 'fee_rate') else 0.001)
+        # Calculate entry fees (limit/maker)
+        entry_fees = 0.0
+        fee_calculator = self.account_state.get_fee_calculator() if self.account_state else None
+        if fee_calculator:
+            from src.backtest.fees import OrderType
+
+            fee_result = fee_calculator.calculate_trade_fee(
+                symbol=symbol,
+                amount=position_size,
+                price=entry_price,
+                order_type=OrderType.LIMIT,
+                metadata={'is_maker': True}
+            )
+            entry_fees = fee_result['fee_paid']
+        else:
+            entry_fees = position_value * (self.config.fee_rate if hasattr(self.config, 'fee_rate') else 0.001)
         
         # Create position in portfolio tracker
         position = self.portfolio_tracker.add_position(
@@ -623,7 +654,10 @@ class BacktestEngine:
             symbol=symbol,
             side=side,
             size=position_size,
-            entry_price=entry_price
+            entry_price=entry_price,
+            timestamp=timestamp,
+            order_type='limit',
+            is_maker=True
         )
         
         if success:

@@ -156,9 +156,9 @@ class SignalDetector:
             'near_support': False
         }
         
-        # Combine signals
+        # Combine signals with indicator data for enhanced strength calculation
         final_signal = self._combine_signals(
-            signals, symbol, current_price, details
+            signals, symbol, current_price, details, indicators
         )
         
         logger.debug(f"Signal for {symbol} at {current_price}: {final_signal.signal.value} "
@@ -296,12 +296,96 @@ class SignalDetector:
         
         return (SignalType.NONE, 0.0, "No pivot point signal")
     
+    def _calculate_signal_strength(
+        self,
+        base_strength: float,
+        indicators: IndicatorValues,
+        signal_direction: str  # 'buy' or 'sell'
+    ) -> float:
+        """
+        Calculate enhanced signal strength based on multiple factors.
+        
+        Factors:
+        - ADX: Higher ADX = stronger trend = higher strength
+        - EMA spread: Wider EMA spread = stronger trend = higher strength
+        - RSI confirmation: RSI aligned with signal = higher strength
+        
+        Args:
+            base_strength: Base signal strength from component signals
+            indicators: Current indicator values
+            signal_direction: Direction of signal ('buy' or 'sell')
+            
+        Returns:
+            Enhanced signal strength (0.0 to 1.0)
+        """
+        strength = base_strength
+        factors = []
+        
+        # ADX factor (0.0 to 0.2 boost)
+        if indicators.adx is not None:
+            if indicators.adx >= 40:
+                adx_factor = 0.2  # Strong trend
+            elif indicators.adx >= 30:
+                adx_factor = 0.15  # Good trend
+            elif indicators.adx >= 20:
+                adx_factor = 0.1  # Moderate trend
+            elif indicators.adx >= 10:
+                adx_factor = 0.05  # Weak trend
+            else:
+                adx_factor = 0.0  # No trend
+            factors.append(adx_factor)
+        
+        # EMA spread factor (0.0 to 0.15 boost)
+        if indicators.ema_9 and indicators.ema_50 and indicators.ema_50 > 0:
+            ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+            if ema_spread >= 0.05:  # 5% spread
+                spread_factor = 0.15
+            elif ema_spread >= 0.03:  # 3% spread
+                spread_factor = 0.1
+            elif ema_spread >= 0.015:  # 1.5% spread
+                spread_factor = 0.05
+            else:
+                spread_factor = 0.0
+            factors.append(spread_factor)
+        
+        # RSI confirmation factor (0.0 to 0.15 boost)
+        if indicators.rsi is not None:
+            if signal_direction == 'buy':
+                # For buy signals: RSI < 40 is good confirmation
+                if indicators.rsi <= 30:
+                    rsi_factor = 0.15  # Strong oversold
+                elif indicators.rsi <= 40:
+                    rsi_factor = 0.1  # Good confirmation
+                elif indicators.rsi <= 50:
+                    rsi_factor = 0.05  # Mild confirmation
+                else:
+                    rsi_factor = 0.0  # No confirmation
+            else:  # sell
+                # For sell signals: RSI > 60 is good confirmation
+                if indicators.rsi >= 70:
+                    rsi_factor = 0.15  # Strong overbought
+                elif indicators.rsi >= 60:
+                    rsi_factor = 0.1  # Good confirmation
+                elif indicators.rsi >= 50:
+                    rsi_factor = 0.05  # Mild confirmation
+                else:
+                    rsi_factor = 0.0  # No confirmation
+            factors.append(rsi_factor)
+        
+        # Add average of factors to base strength
+        if factors:
+            avg_factor = sum(factors) / len(factors)
+            strength = min(base_strength + avg_factor, 1.0)
+        
+        return strength
+    
     def _combine_signals(
         self,
         signals: List[Tuple[SignalType, float, str]],
         symbol: str,
         price: float,
-        details: Dict[str, Any]
+        details: Dict[str, Any],
+        indicators: IndicatorValues = None
     ) -> Signal:
         """
         Combine multiple indicator signals into final signal.
@@ -311,6 +395,7 @@ class SignalDetector:
             symbol: Trading pair symbol
             price: Current price
             details: Signal details dictionary
+            indicators: Current indicator values for strength calculation
             
         Returns:
             Combined Signal object
@@ -333,7 +418,12 @@ class SignalDetector:
             
             reasons = [s[2] for s in buy_signals if s[1] > 0]
             reason = "; ".join(reasons) if reasons else "Buy signal"
-            strength = min(buy_strength, 1.0)
+            
+            # Enhance strength with ADX, EMA spread, and RSI confirmation
+            if indicators:
+                strength = self._calculate_signal_strength(buy_strength, indicators, 'buy')
+            else:
+                strength = min(buy_strength, 1.0)
             
         elif sell_strength > buy_strength and sell_strength >= self.weak_signal_threshold:
             # Sell signal
@@ -344,7 +434,12 @@ class SignalDetector:
             
             reasons = [s[2] for s in sell_signals if s[1] > 0]
             reason = "; ".join(reasons) if reasons else "Sell signal"
-            strength = min(sell_strength, 1.0)
+            
+            # Enhance strength with ADX, EMA spread, and RSI confirmation
+            if indicators:
+                strength = self._calculate_signal_strength(sell_strength, indicators, 'sell')
+            else:
+                strength = min(sell_strength, 1.0)
             
         else:
             # No clear signal

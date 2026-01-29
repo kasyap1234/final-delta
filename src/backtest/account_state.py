@@ -678,7 +678,16 @@ class AccountState:
         
         return position
     
-    def open_position(self, symbol: str, side: str, size: float, entry_price: float) -> bool:
+    def open_position(
+        self,
+        symbol: str,
+        side: str,
+        size: float,
+        entry_price: float,
+        timestamp: Optional[datetime] = None,
+        order_type: str = "limit",
+        is_maker: bool = True
+    ) -> bool:
         """
         Open a position (simplified interface for strategy engine).
         
@@ -698,18 +707,62 @@ class AccountState:
             logger.warning(f"Insufficient balance to open position: {position_value:.2f} > {self._free_balance:.2f}")
             return False
         
+        if timestamp is None:
+            timestamp = datetime.now()
+
+        fee = 0.0
+        fee_type = 'maker' if is_maker else 'taker'
+        if self._fee_calculator is not None:
+            order_type_enum = self._parse_order_type(order_type, is_maker)
+            fee_result = self._fee_calculator.calculate_trade_fee(
+                symbol=symbol,
+                amount=size,
+                price=entry_price,
+                order_type=order_type_enum,
+                timestamp=timestamp,
+                metadata={'side': side, 'is_maker': is_maker}
+            )
+            fee = fee_result['fee_paid']
+            fee_type = fee_result['fee_type']
+
+        # Record fee in history
+        if fee > 0:
+            self._record_fee({
+                'timestamp': timestamp.isoformat(),
+                'symbol': symbol,
+                'order_id': f"entry_{symbol}",
+                'side': side,
+                'amount': size,
+                'price': entry_price,
+                'fee': fee,
+                'fee_type': fee_type,
+                'notional_value': size * entry_price
+            })
+
+            # Deduct fee from balance
+            self._total_balance -= fee
+            self._free_balance -= fee
+            self._total_fees_paid += fee
+
         # Use existing _open_position method
         self._open_position(
             symbol=symbol,
             side=side,
             size=size,
             entry_price=entry_price,
-            timestamp=datetime.now(),
-            fees=0.0
+            timestamp=timestamp,
+            fees=fee
         )
         return True
     
-    def close_position(self, symbol: str, exit_price: float) -> Optional[Position]:
+    def close_position(
+        self,
+        symbol: str,
+        exit_price: float,
+        timestamp: Optional[datetime] = None,
+        order_type: str = "limit",
+        is_maker: bool = True
+    ) -> Optional[Position]:
         """
         Close a position by symbol (simplified interface for strategy engine).
         
@@ -721,14 +774,51 @@ class AccountState:
             Closed Position if found, None otherwise
         """
         position = self._find_position_to_close(symbol)
-        if position:
-            return self._close_position(
-                position_id=position.position_id,
-                exit_price=exit_price,
-                timestamp=datetime.now(),
-                exit_fees=0.0
+        if not position:
+            return None
+
+        if timestamp is None:
+            timestamp = datetime.now()
+
+        fee = 0.0
+        fee_type = 'maker' if is_maker else 'taker'
+        if self._fee_calculator is not None:
+            order_type_enum = self._parse_order_type(order_type, is_maker)
+            fee_result = self._fee_calculator.calculate_trade_fee(
+                symbol=symbol,
+                amount=position.size,
+                price=exit_price,
+                order_type=order_type_enum,
+                timestamp=timestamp,
+                metadata={'side': 'sell' if position.side == 'long' else 'buy', 'is_maker': is_maker}
             )
-        return None
+            fee = fee_result['fee_paid']
+            fee_type = fee_result['fee_type']
+
+        # Record fee in history
+        if fee > 0:
+            self._record_fee({
+                'timestamp': timestamp.isoformat(),
+                'symbol': symbol,
+                'order_id': f"exit_{symbol}",
+                'side': 'sell' if position.side == 'long' else 'buy',
+                'amount': position.size,
+                'price': exit_price,
+                'fee': fee,
+                'fee_type': fee_type,
+                'notional_value': position.size * exit_price
+            })
+
+            self._total_balance -= fee
+            self._free_balance -= fee
+            self._total_fees_paid += fee
+
+        return self._close_position(
+            position_id=position.position_id,
+            exit_price=exit_price,
+            timestamp=timestamp,
+            exit_fees=fee
+        )
     
     def _find_position_to_close(self, symbol: str) -> Optional[Position]:
         """
