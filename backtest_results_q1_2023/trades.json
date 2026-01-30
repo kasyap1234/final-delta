@@ -1,0 +1,552 @@
+[
+  {
+    "timestamp": "2023-01-07T01:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 5.2946691122592675,
+    "price": 1274.5,
+    "pnl": 48.18148892155885,
+    "reason": "take_profit",
+    "entry_price": 1265.4
+  },
+  {
+    "timestamp": "2023-01-07T02:30:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 4.598011281595358,
+    "price": 1265.8,
+    "pnl": -30.346874458529992,
+    "reason": "stop_loss",
+    "entry_price": 1272.4
+  },
+  {
+    "timestamp": "2023-01-08T06:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 4.465272722170488,
+    "price": 1259.4950091656626,
+    "pnl": -35.07467630546549,
+    "reason": "stop_loss",
+    "entry_price": 1267.35
+  },
+  {
+    "timestamp": "2023-01-09T08:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 4.392602550364935,
+    "price": 1300.832756886391,
+    "pnl": 52.41585833204568,
+    "reason": "take_profit",
+    "entry_price": 1288.9
+  },
+  {
+    "timestamp": "2023-01-09T16:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 3.1397458961713247,
+    "price": 1322.65,
+    "pnl": 34.22323026826773,
+    "reason": "take_profit",
+    "entry_price": 1311.75
+  },
+  {
+    "timestamp": "2023-01-09T21:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 3.052218939197948,
+    "price": 1332.5,
+    "pnl": 32.506131702458426,
+    "reason": "take_profit",
+    "entry_price": 1321.85
+  },
+  {
+    "timestamp": "2023-01-12T06:30:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.066288496888888,
+    "price": 1411.9,
+    "pnl": 44.73514595764461,
+    "reason": "take_profit",
+    "entry_price": 1390.25
+  },
+  {
+    "timestamp": "2023-01-12T19:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 3.4395915371930847,
+    "price": 1389.9101801922634,
+    "pnl": -38.832368667125834,
+    "reason": "stop_loss",
+    "entry_price": 1401.2
+  },
+  {
+    "timestamp": "2023-01-13T06:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.8673491543801182,
+    "price": 1413.05,
+    "pnl": -24.649008837817643,
+    "reason": "stop_loss",
+    "entry_price": 1426.25
+  },
+  {
+    "timestamp": "2023-01-14T06:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 4.0096516759294065,
+    "price": 1543.605881102217,
+    "pnl": -133.29733705329198,
+    "reason": "stop_loss",
+    "entry_price": 1576.85
+  },
+  {
+    "timestamp": "2023-01-18T22:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 3.6390362645765135,
+    "price": 1513.8,
+    "pnl": -123.5452811823728,
+    "reason": "stop_loss",
+    "entry_price": 1547.75
+  },
+  {
+    "timestamp": "2023-01-21T01:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 3.373021694889367,
+    "price": 1590.6,
+    "pnl": 241.67700443882268,
+    "reason": "take_profit",
+    "entry_price": 1518.95
+  },
+  {
+    "timestamp": "2023-01-25T03:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.7950146146214707,
+    "price": 1595.2,
+    "pnl": -75.7448960562416,
+    "reason": "stop_loss",
+    "entry_price": 1622.3
+  },
+  {
+    "timestamp": "2023-02-02T06:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.4363622203189044,
+    "price": 1653.2,
+    "pnl": 211.96351316774468,
+    "reason": "take_profit",
+    "entry_price": 1566.2
+  },
+  {
+    "timestamp": "2023-02-02T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.19689012354881405,
+    "price": 23915.5,
+    "pnl": -27.958397543931596,
+    "reason": "stop_loss",
+    "entry_price": 24057.5
+  },
+  {
+    "timestamp": "2023-02-06T00:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.0178743148082723,
+    "price": 1618.75,
+    "pnl": -128.53859385328704,
+    "reason": "stop_loss",
+    "entry_price": 1682.45
+  },
+  {
+    "timestamp": "2023-02-10T03:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.6091743853898535,
+    "price": 1548.4538066802752,
+    "pnl": -110.22231978681283,
+    "reason": "stop_loss",
+    "entry_price": 1616.95
+  },
+  {
+    "timestamp": "2023-02-14T21:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.9620764039970544,
+    "price": 1552.15,
+    "pnl": -17.26627235517399,
+    "reason": "stop_loss",
+    "entry_price": 1560.95
+  },
+  {
+    "timestamp": "2023-02-15T06:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 5.042726442878905,
+    "price": 1554.5,
+    "pnl": -33.53413084514518,
+    "reason": "stop_loss",
+    "entry_price": 1561.15
+  },
+  {
+    "timestamp": "2023-02-16T02:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.5826411268313123,
+    "price": 1650.25,
+    "pnl": 41.96791831100882,
+    "reason": "take_profit",
+    "entry_price": 1634.0
+  },
+  {
+    "timestamp": "2023-02-16T19:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.343756122653571,
+    "price": 1682.1,
+    "pnl": -13.125034286860316,
+    "reason": "stop_loss",
+    "entry_price": 1687.7
+  },
+  {
+    "timestamp": "2023-02-16T21:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.266362150054319,
+    "price": 1712.4,
+    "pnl": 69.5773180066677,
+    "reason": "take_profit",
+    "entry_price": 1681.7
+  },
+  {
+    "timestamp": "2023-02-18T01:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.14000000222766895,
+    "price": 24587.5,
+    "pnl": 25.06000039875274,
+    "reason": "take_profit",
+    "entry_price": 24408.5
+  },
+  {
+    "timestamp": "2023-02-20T21:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.30252582873018957,
+    "price": 24876.5,
+    "pnl": -31.916474931035,
+    "reason": "stop_loss",
+    "entry_price": 24982.0
+  },
+  {
+    "timestamp": "2023-02-21T23:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 4.051672645180729,
+    "price": 1678.9,
+    "pnl": -40.111559187289586,
+    "reason": "stop_loss",
+    "entry_price": 1669.0
+  },
+  {
+    "timestamp": "2023-02-23T03:45:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.2924365600027642,
+    "price": 23903.5,
+    "pnl": -33.045331280312354,
+    "reason": "stop_loss",
+    "entry_price": 23790.5
+  },
+  {
+    "timestamp": "2023-02-24T21:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 2.1370740469537775,
+    "price": 1603.6,
+    "pnl": 11.433346151203,
+    "reason": "take_profit",
+    "entry_price": 1608.95
+  },
+  {
+    "timestamp": "2023-02-26T02:15:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 4.359949809038301,
+    "price": 1565.13275415592,
+    "pnl": 59.15251092707199,
+    "reason": "take_profit",
+    "entry_price": 1578.7
+  },
+  {
+    "timestamp": "2023-02-27T21:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.2304433950920371,
+    "price": 23817.5,
+    "pnl": 9.448179198773522,
+    "reason": "stop_loss",
+    "entry_price": 23776.5
+  },
+  {
+    "timestamp": "2023-03-01T07:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.24924770837435276,
+    "price": 23174.5,
+    "pnl": -26.295633233494215,
+    "reason": "stop_loss",
+    "entry_price": 23069.0
+  },
+  {
+    "timestamp": "2023-03-05T06:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 4.558924137878256,
+    "price": 1575.4,
+    "pnl": -56.07476689590337,
+    "reason": "stop_loss",
+    "entry_price": 1563.1
+  },
+  {
+    "timestamp": "2023-03-07T20:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 2.0873810940370965,
+    "price": 1550.2242291177954,
+    "pnl": 46.18491583051018,
+    "reason": "take_profit",
+    "entry_price": 1572.35
+  },
+  {
+    "timestamp": "2023-03-08T05:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 4.031903351312737,
+    "price": 1563.25,
+    "pnl": -26.610562118663697,
+    "reason": "stop_loss",
+    "entry_price": 1556.65
+  },
+  {
+    "timestamp": "2023-03-09T22:15:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.2977918014658648,
+    "price": 21505.5,
+    "pnl": 55.835962774849655,
+    "reason": "take_profit",
+    "entry_price": 21693.0
+  },
+  {
+    "timestamp": "2023-03-10T12:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 4.266659932921534,
+    "price": 1407.2,
+    "pnl": 98.77317744713292,
+    "reason": "take_profit",
+    "entry_price": 1430.35
+  },
+  {
+    "timestamp": "2023-03-10T16:00:00",
+    "symbol": "BTC/USDT",
+    "side": "buy",
+    "size": 0.3768688183635841,
+    "price": 19813.5,
+    "pnl": 47.297036704629804,
+    "reason": "take_profit",
+    "entry_price": 19939.0
+  },
+  {
+    "timestamp": "2023-03-13T00:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.8027561858417869,
+    "price": 1528.55,
+    "pnl": 37.49732866550909,
+    "reason": "take_profit",
+    "entry_price": 1507.75
+  },
+  {
+    "timestamp": "2023-03-13T02:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.1476196401777679,
+    "price": 20997.5,
+    "pnl": 22.511995127109607,
+    "reason": "take_profit",
+    "entry_price": 20845.0
+  },
+  {
+    "timestamp": "2023-03-13T03:45:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.10185461481204264,
+    "price": 21230.0,
+    "pnl": -4.226966514699769,
+    "reason": "take_profit",
+    "entry_price": 21271.5
+  },
+  {
+    "timestamp": "2023-03-13T15:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.2997990554754867,
+    "price": 22051.5,
+    "pnl": -53.66403093011212,
+    "reason": "stop_loss",
+    "entry_price": 22230.5
+  },
+  {
+    "timestamp": "2023-03-14T18:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.20405753207351274,
+    "price": 25000.0,
+    "pnl": 185.48829665482307,
+    "reason": "take_profit",
+    "entry_price": 24091.0
+  },
+  {
+    "timestamp": "2023-03-14T23:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.20468741861264575,
+    "price": 25545.619634797502,
+    "pnl": -135.68327080230722,
+    "reason": "stop_loss",
+    "entry_price": 26208.5
+  },
+  {
+    "timestamp": "2023-03-15T00:30:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.19331107930176555,
+    "price": 25034.0,
+    "pnl": -77.32443172070622,
+    "reason": "stop_loss",
+    "entry_price": 25434.0
+  },
+  {
+    "timestamp": "2023-03-15T00:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.5481858513670934,
+    "price": 1713.73610665392,
+    "pnl": -39.26802081398498,
+    "reason": "stop_loss",
+    "entry_price": 1739.1
+  },
+  {
+    "timestamp": "2023-03-17T12:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.15046118687220358,
+    "price": 25891.5,
+    "pnl": 204.40152236588858,
+    "reason": "take_profit",
+    "entry_price": 24533.0
+  },
+  {
+    "timestamp": "2023-03-18T06:15:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.8415109627877073,
+    "price": 1784.2,
+    "pnl": 7.089817206732924,
+    "reason": "take_profit",
+    "entry_price": 1780.35
+  },
+  {
+    "timestamp": "2023-03-18T21:00:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.02510894509158,
+    "price": 1797.75,
+    "pnl": -19.137279531115524,
+    "reason": "stop_loss",
+    "entry_price": 1807.2
+  },
+  {
+    "timestamp": "2023-03-19T22:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.1567857951318411,
+    "price": 27640.5,
+    "pnl": 232.98369156591588,
+    "reason": "take_profit",
+    "entry_price": 26154.5
+  },
+  {
+    "timestamp": "2023-03-20T05:30:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.358808564243052,
+    "price": 1781.25,
+    "pnl": -33.02331989940273,
+    "reason": "stop_loss",
+    "entry_price": 1795.25
+  },
+  {
+    "timestamp": "2023-03-21T23:30:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 2.2637043318737806,
+    "price": 1790.7,
+    "pnl": -34.40830584448157,
+    "reason": "stop_loss",
+    "entry_price": 1805.9
+  },
+  {
+    "timestamp": "2023-03-23T01:15:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.12300404805276838,
+    "price": 27124.5,
+    "pnl": -114.27076064102182,
+    "reason": "stop_loss",
+    "entry_price": 28053.5
+  },
+  {
+    "timestamp": "2023-03-23T11:30:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 1.5271426647959274,
+    "price": 1749.6,
+    "pnl": -38.33128088637764,
+    "reason": "stop_loss",
+    "entry_price": 1724.5
+  },
+  {
+    "timestamp": "2023-03-27T20:45:00",
+    "symbol": "ETH/USDT",
+    "side": "buy",
+    "size": 2.1906685661053924,
+    "price": 1706.55,
+    "pnl": -29.902625927338306,
+    "reason": "stop_loss",
+    "entry_price": 1692.9
+  },
+  {
+    "timestamp": "2023-03-29T02:45:00",
+    "symbol": "ETH/USDT",
+    "side": "sell",
+    "size": 1.7398473774310632,
+    "price": 1771.0350915269685,
+    "pnl": -27.254549924501625,
+    "reason": "stop_loss",
+    "entry_price": 1786.7
+  },
+  {
+    "timestamp": "2023-03-30T08:00:00",
+    "symbol": "BTC/USDT",
+    "side": "sell",
+    "size": 0.12469217992828202,
+    "price": 28894.0,
+    "pnl": 219.27119840388394,
+    "reason": "take_profit",
+    "entry_price": 27135.5
+  }
+]

@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
 
-from src.indicators.signal_detector import SignalDetector, Signal, SignalType
+from src.indicators.signal_detector import SignalDetector, Signal
+from src.indicators.enhanced_signal_detector import EnhancedSignalDetector, SignalType
+from src.indicators.market_regime import AdaptiveMarketRegimeDetector, MarketRegime
 from src.indicators.technical_indicators import (
     calculate_ema,
     calculate_rsi,
@@ -26,15 +28,17 @@ from src.indicators.technical_indicators import (
     get_trend_direction,
     is_near_resistance,
     is_near_support,
-    detect_rsi_divergence
+    detect_rsi_divergence,
 )
 from src.indicators.indicator_manager import IndicatorManager, IndicatorValues
 from src.risk.position_sizer import PositionSizer
+from src.risk.exit_manager import AllWeatherExitManager
 from src.execution.price_calculator import PriceCalculator
 
 
 class TradeDirection(Enum):
     """Trade direction for backtest strategy."""
+
     LONG = "long"
     SHORT = "short"
 
@@ -42,6 +46,7 @@ class TradeDirection(Enum):
 @dataclass
 class StrategySignal:
     """Trading signal for backtest strategy."""
+
     symbol: str
     direction: TradeDirection
     timestamp: datetime
@@ -53,6 +58,7 @@ class StrategySignal:
 @dataclass
 class ExitSignal:
     """Exit signal for closing positions."""
+
     symbol: str
     direction: TradeDirection  # Direction to exit (opposite of position)
     timestamp: datetime
@@ -67,6 +73,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StrategyConfig:
     """Configuration for the strategy engine."""
+
     ema_short: int = 9
     ema_medium: int = 21
     ema_long: int = 50
@@ -81,17 +88,37 @@ class StrategyConfig:
     stop_loss_atr_multiplier: float = 2.0
     take_profit_rr_ratio: float = 2.0
 
-    # Signal thresholds (matching live trading bot)
     rsi_overbought: float = 70.0
     rsi_oversold: float = 30.0
-    resistance_threshold: float = 0.005  # 0.5%
-    strong_signal_threshold: float = 0.8
-    weak_signal_threshold: float = 0.3
+    resistance_threshold: float = 0.005
+    strong_signal_threshold: float = 0.80
+    weak_signal_threshold: float = 0.45
     crossover_lookback: int = 3
+    min_signal_confidence: float = 0.50
+    min_adx_for_entry: float = 18.0
+    min_ema_spread_for_entry: float = 0.006
+    min_regime_confidence: float = 0.60
 
-    # Regime filters
-    min_adx_for_entry: float = 15.0
-    min_ema_spread_for_entry: float = 0.005
+    # Enhanced strategy settings
+    use_enhanced_strategy: bool = True  # Enable new regime-based strategy
+
+    # Kelly criterion settings
+    use_kelly_sizing: bool = True
+    kelly_fraction: float = 0.5  # Half-Kelly
+
+    # Volatility targeting
+    use_volatility_targeting: bool = True
+    target_volatility: float = 0.15  # 15% annualized
+
+    # Mean reversion settings
+    mr_rsi_threshold: float = 20
+    mr_bb_threshold: float = 0.02
+
+    # Regime-based weights
+    trending_trend_weight: float = 0.9
+    trending_mr_weight: float = 0.1
+    ranging_trend_weight: float = 0.2
+    ranging_mr_weight: float = 0.8
 
 
 class BacktestStrategyEngine:
@@ -119,26 +146,60 @@ class BacktestStrategyEngine:
 
         # Initialize indicator manager with config
         indicator_config = {
-            'rsi_period': config.rsi_period,
-            'atr_period': config.atr_period,
-            'pivot_lookback': config.pivot_lookback,
-            'ema_periods': [config.ema_short, config.ema_medium, config.ema_long, config.ema_trend]
+            "rsi_period": config.rsi_period,
+            "atr_period": config.atr_period,
+            "pivot_lookback": config.pivot_lookback,
+            "ema_periods": [
+                config.ema_short,
+                config.ema_medium,
+                config.ema_long,
+                config.ema_trend,
+            ],
         }
         self.indicator_manager = IndicatorManager(indicator_config)
 
         # Initialize signal detector with config (matching live trading)
         signal_config = {
-            'rsi_overbought': config.rsi_overbought,
-            'rsi_oversold': config.rsi_oversold,
-            'resistance_threshold': config.resistance_threshold,
-            'strong_signal_threshold': config.strong_signal_threshold,
-            'weak_signal_threshold': config.weak_signal_threshold,
-            'crossover_lookback': config.crossover_lookback
+            "rsi_overbought": config.rsi_overbought,
+            "rsi_oversold": config.rsi_oversold,
+            "resistance_threshold": config.resistance_threshold,
+            "strong_signal_threshold": config.strong_signal_threshold,
+            "weak_signal_threshold": config.weak_signal_threshold,
+            "crossover_lookback": config.crossover_lookback,
+            "mr_rsi_threshold": config.mr_rsi_threshold,
+            "mr_bb_threshold": config.mr_bb_threshold,
         }
-        self.signal_detector = SignalDetector(signal_config)
 
-        # Initialize position sizer
-        self.position_sizer = PositionSizer()
+        # Use enhanced strategy with regime detection if enabled
+        self.use_enhanced_strategy = config.use_enhanced_strategy
+        if self.use_enhanced_strategy:
+            self.signal_detector = EnhancedSignalDetector(signal_config)
+            self.regime_detector = AdaptiveMarketRegimeDetector(
+                {
+                    "adx_strong_trend": 25,
+                    "adx_weak_trend": 20,
+                    "bb_squeeze_threshold": 0.06,
+                    "bb_volatile_threshold": 0.10,
+                    "min_confidence": 0.6,
+                }
+            )
+            logger.info("Using EnhancedSignalDetector with MarketRegimeDetector")
+        else:
+            self.signal_detector = SignalDetector(signal_config)
+            self.regime_detector = None
+            logger.info("Using standard SignalDetector")
+
+        # Initialize position sizer with enhanced config
+        position_sizer_config = {
+            "default_risk_percent": config.max_risk_per_trade_percent,
+            "default_atr_multiplier": config.stop_loss_atr_multiplier,
+            "default_risk_reward_ratio": config.take_profit_rr_ratio,
+            "use_kelly": config.use_kelly_sizing,
+            "kelly_fraction": config.kelly_fraction,
+            "use_volatility_targeting": config.use_volatility_targeting,
+            "target_volatility": config.target_volatility,
+        }
+        self.position_sizer = PositionSizer(position_sizer_config)
 
         # Initialize price calculator
         self.price_calculator = PriceCalculator()
@@ -152,9 +213,17 @@ class BacktestStrategyEngine:
         # Track open positions for exit signal detection
         self.open_positions: Dict[str, Dict[str, Any]] = {}
 
-        logger.info("BacktestStrategyEngine initialized with live trading parity")
+        # Track performance for Kelly criterion
+        self.trade_history: List[Dict[str, Any]] = []
 
-    def update_price(self, symbol: str, candle: Dict[str, float], timestamp: datetime) -> None:
+        # Initialize exit manager for all-weather exits
+        self.exit_manager = AllWeatherExitManager()
+
+        logger.info("BacktestStrategyEngine initialized with all-weather strategy")
+
+    def update_price(
+        self, symbol: str, candle: Dict[str, float], timestamp: datetime
+    ) -> None:
         """
         Update price history for a symbol.
 
@@ -166,11 +235,11 @@ class BacktestStrategyEngine:
         # Convert to OHLCV format for IndicatorManager: [timestamp, open, high, low, close, volume]
         ohlcv_candle = [
             timestamp.timestamp() * 1000,  # timestamp in milliseconds
-            candle['open'],
-            candle['high'],
-            candle['low'],
-            candle['close'],
-            candle['volume']
+            candle["open"],
+            candle["high"],
+            candle["low"],
+            candle["close"],
+            candle["volume"],
         ]
 
         if symbol not in self.price_history:
@@ -207,7 +276,9 @@ class BacktestStrategyEngine:
 
         return indicators
 
-    def generate_signal(self, symbol: str, indicators: IndicatorValues) -> Optional[StrategySignal]:
+    def generate_signal(
+        self, symbol: str, indicators: IndicatorValues
+    ) -> Optional[StrategySignal]:
         """
         Generate trading signal using the actual SignalDetector from live trading.
 
@@ -226,20 +297,63 @@ class BacktestStrategyEngine:
         price_arrays = self.indicator_manager.get_price_arrays(symbol)
         price_history = None
         if price_arrays:
-            price_history = price_arrays['closes']
+            price_history = price_arrays["closes"]
 
-        # Use SignalDetector for entry signal detection (same as live trading)
+        # Detect market regime if using enhanced strategy
+        regime_metrics = None
+        if self.use_enhanced_strategy and self.regime_detector:
+            regime_metrics = self.regime_detector.detect_regime(
+                prices=price_history
+                if price_history is not None
+                else np.array([current_price]),
+                ema_fast=indicators.ema_9,
+                ema_slow=indicators.ema_50,
+                adx=indicators.adx,
+                atr=indicators.atr,
+            )
+            # Check if trading is allowed in this regime
+            should_trade, _ = self.regime_detector.should_trade_in_regime(
+                regime_metrics.regime
+            )
+            if not should_trade:
+                logger.debug(
+                    f"Trading not allowed in regime: {regime_metrics.regime.value}"
+                )
+                return None
+
         signal = self.signal_detector.check_entry_signal(
             symbol=symbol,
             indicators=indicators,
             current_price=current_price,
-            price_history=price_history
+            price_history=price_history,
         )
 
-        # Convert Signal to StrategySignal if we have a valid entry signal
-        if signal.signal in (SignalType.BUY, SignalType.STRONG_BUY):
+        if signal.strength < self.config.min_signal_confidence:
+            return None
+
+        if (
+            regime_metrics
+            and regime_metrics.confidence < self.config.min_regime_confidence
+        ):
+            return None
+
+        long_signals = (
+            SignalType.BUY,
+            SignalType.STRONG_BUY,
+            SignalType.MEAN_REVERSION_LONG,
+        )
+        short_signals = (
+            SignalType.SELL,
+            SignalType.STRONG_SELL,
+            SignalType.MEAN_REVERSION_SHORT,
+        )
+
+        if signal.signal in long_signals:
             # Check if we already have an active long signal
-            if symbol not in self.active_signals or self.active_signals[symbol].direction != TradeDirection.LONG:
+            if (
+                symbol not in self.active_signals
+                or self.active_signals[symbol].direction != TradeDirection.LONG
+            ):
                 strategy_signal = StrategySignal(
                     symbol=symbol,
                     direction=TradeDirection.LONG,
@@ -247,27 +361,34 @@ class BacktestStrategyEngine:
                     price=current_price,
                     confidence=signal.strength,
                     metadata={
-                        'signal_type': signal.signal.value,
-                        'reason': signal.reason,
-                        'details': signal.details,
-                        'ema_9': indicators.ema_9,
-                        'ema_21': indicators.ema_21,
-                        'ema_50': indicators.ema_50,
-                        'ema_200': indicators.ema_200,
-                        'rsi': indicators.rsi,
-                        'atr': indicators.atr,
-                        'trend': indicators.trend,
-                        'last_crossover': indicators.last_crossover.value if indicators.last_crossover else None
-                    }
+                        "signal_type": signal.signal.value,
+                        "reason": signal.reason,
+                        "details": signal.details,
+                        "ema_9": indicators.ema_9,
+                        "ema_21": indicators.ema_21,
+                        "ema_50": indicators.ema_50,
+                        "ema_200": indicators.ema_200,
+                        "rsi": indicators.rsi,
+                        "atr": indicators.atr,
+                        "trend": indicators.trend,
+                        "last_crossover": indicators.last_crossover.value
+                        if indicators.last_crossover
+                        else None,
+                    },
                 )
                 self.active_signals[symbol] = strategy_signal
-                logger.info(f"LONG signal generated for {symbol} at {current_price:.2f} "
-                           f"(strength={signal.strength:.2f}, reason={signal.reason})")
+                logger.info(
+                    f"LONG signal generated for {symbol} at {current_price:.2f} "
+                    f"(strength={signal.strength:.2f}, reason={signal.reason})"
+                )
                 return strategy_signal
 
-        elif signal.signal in (SignalType.SELL, SignalType.STRONG_SELL):
+        elif signal.signal in short_signals:
             # Check if we already have an active short signal
-            if symbol not in self.active_signals or self.active_signals[symbol].direction != TradeDirection.SHORT:
+            if (
+                symbol not in self.active_signals
+                or self.active_signals[symbol].direction != TradeDirection.SHORT
+            ):
                 strategy_signal = StrategySignal(
                     symbol=symbol,
                     direction=TradeDirection.SHORT,
@@ -275,22 +396,26 @@ class BacktestStrategyEngine:
                     price=current_price,
                     confidence=signal.strength,
                     metadata={
-                        'signal_type': signal.signal.value,
-                        'reason': signal.reason,
-                        'details': signal.details,
-                        'ema_9': indicators.ema_9,
-                        'ema_21': indicators.ema_21,
-                        'ema_50': indicators.ema_50,
-                        'ema_200': indicators.ema_200,
-                        'rsi': indicators.rsi,
-                        'atr': indicators.atr,
-                        'trend': indicators.trend,
-                        'last_crossover': indicators.last_crossover.value if indicators.last_crossover else None
-                    }
+                        "signal_type": signal.signal.value,
+                        "reason": signal.reason,
+                        "details": signal.details,
+                        "ema_9": indicators.ema_9,
+                        "ema_21": indicators.ema_21,
+                        "ema_50": indicators.ema_50,
+                        "ema_200": indicators.ema_200,
+                        "rsi": indicators.rsi,
+                        "atr": indicators.atr,
+                        "trend": indicators.trend,
+                        "last_crossover": indicators.last_crossover.value
+                        if indicators.last_crossover
+                        else None,
+                    },
                 )
                 self.active_signals[symbol] = strategy_signal
-                logger.info(f"SHORT signal generated for {symbol} at {current_price:.2f} "
-                           f"(strength={signal.strength:.2f}, reason={signal.reason})")
+                logger.info(
+                    f"SHORT signal generated for {symbol} at {current_price:.2f} "
+                    f"(strength={signal.strength:.2f}, reason={signal.reason})"
+                )
                 return strategy_signal
 
         # Clear signal if conditions no longer met
@@ -299,8 +424,13 @@ class BacktestStrategyEngine:
 
         return None
 
-    def check_exit_signal(self, symbol: str, indicators: IndicatorValues,
-                          entry_price: float, position_type: str) -> Optional[ExitSignal]:
+    def check_exit_signal(
+        self,
+        symbol: str,
+        indicators: IndicatorValues,
+        entry_price: float,
+        position_type: str,
+    ) -> Optional[ExitSignal]:
         """
         Check for exit signals using the SignalDetector's exit logic.
 
@@ -323,12 +453,14 @@ class BacktestStrategyEngine:
             indicators=indicators,
             current_price=current_price,
             entry_price=entry_price,
-            position_type=position_type
+            position_type=position_type,
         )
 
         # Convert to ExitSignal if we have a valid exit signal
         if signal.signal != SignalType.NONE:
-            exit_direction = TradeDirection.SHORT if position_type == 'long' else TradeDirection.LONG
+            exit_direction = (
+                TradeDirection.SHORT if position_type == "long" else TradeDirection.LONG
+            )
 
             return ExitSignal(
                 symbol=symbol,
@@ -336,7 +468,7 @@ class BacktestStrategyEngine:
                 timestamp=datetime.now(),
                 price=current_price,
                 reason=signal.reason,
-                strength=signal.strength
+                strength=signal.strength,
             )
 
         return None
@@ -388,19 +520,19 @@ class BacktestStrategyEngine:
     def calculate_signal_strength_multiplier(self, signal_confidence: float) -> float:
         """
         Calculate position size multiplier based on signal strength.
-        
+
         Position sizing based on signal quality:
         - strength >= 0.8: 100% position (full size)
         - strength 0.6-0.8: 75% position
         - strength 0.4-0.6: 50% position
         - strength < 0.4: 25% position
-        
+
         This preserves bull market gains (strong signals = full size)
         while reducing choppy market losses (weak signals = smaller size).
-        
+
         Args:
             signal_confidence: Signal strength from 0.0 to 1.0
-            
+
         Returns:
             Position size multiplier (0.25 to 1.0)
         """
@@ -413,13 +545,11 @@ class BacktestStrategyEngine:
         else:
             return 0.25  # 25% position (minimum)
 
-    def calculate_position_size(self, symbol: str, signal: StrategySignal,
-                                current_price: float) -> Dict[str, Any]:
+    def calculate_position_size(
+        self, symbol: str, signal: StrategySignal, current_price: float
+    ) -> Dict[str, Any]:
         """
-        Calculate position size based on risk parameters using SignalDetector methods.
-        
-        Applies signal strength-based position sizing to reduce risk on weak signals
-        while maintaining full exposure on strong signals.
+        Calculate position size using all-weather multi-factor formula.
 
         Args:
             symbol: Trading symbol
@@ -432,9 +562,9 @@ class BacktestStrategyEngine:
         # Get indicators for stop loss calculation
         indicators = self.calculate_indicators(symbol)
         if not indicators:
-            return {'size': 0, 'stop_loss': 0, 'take_profit': 0}
+            return {"size": 0, "stop_loss": 0, "take_profit": 0}
 
-        # Use SignalDetector's methods for stop loss and take profit (same as live trading)
+        # Use SignalDetector's methods for stop loss and take profit
         position_type = signal.direction.value
 
         # Use dynamic ATR multiplier based on volatility
@@ -444,7 +574,7 @@ class BacktestStrategyEngine:
             indicators=indicators,
             entry_price=current_price,
             position_type=position_type,
-            multiplier=atr_multiplier
+            multiplier=atr_multiplier,
         )
 
         # Use adaptive R:R ratio based on market conditions
@@ -454,44 +584,94 @@ class BacktestStrategyEngine:
             indicators=indicators,
             entry_price=current_price,
             position_type=position_type,
-            risk_reward_ratio=adaptive_rr
+            risk_reward_ratio=adaptive_rr,
         )
 
-        # Calculate position size based on risk
-        atr = indicators.atr if indicators.atr else current_price * 0.02  # Default 2% if no ATR
-        stop_distance = atr * atr_multiplier
+        # Get regime metrics for all-weather sizing
+        regime_metrics = None
+        if self.use_enhanced_strategy and self.regime_detector:
+            price_arrays = self.indicator_manager.get_price_arrays(symbol)
+            price_history = price_arrays.get("closes") if price_arrays else None
+            if price_history is not None and len(price_history) > 0:
+                regime_metrics = self.regime_detector.detect_regime(
+                    prices=price_history,
+                    ema_fast=indicators.ema_9,
+                    ema_slow=indicators.ema_50,
+                    adx=indicators.adx,
+                    atr=indicators.atr,
+                )
 
-        risk_amount = self.account_balance * (self.config.max_risk_per_trade_percent / 100)
+        # Calculate recent performance metrics
+        recent_performance = self._calculate_recent_performance()
 
-        # Position size = Risk Amount / Stop Distance
-        if stop_distance > 0:
-            position_size = risk_amount / stop_distance
-        else:
-            position_size = 0
+        # Calculate current drawdown
+        current_drawdown = self._calculate_current_drawdown()
 
-        # Limit by max position size
-        max_position_value = self.account_balance * (self.config.max_position_size_percent / 100)
-        max_position_size = max_position_value / current_price
+        # Use all-weather position sizing
+        position_result = self.position_sizer.calculate_all_weather_position_size(
+            account_balance=self.account_balance,
+            risk_percent=self.config.max_risk_per_trade_percent,
+            entry_price=current_price,
+            stop_loss_price=stop_loss,
+            symbol=symbol,
+            signal_strength=signal.confidence,
+            regime_metrics=regime_metrics,
+            recent_performance=recent_performance,
+            current_drawdown=current_drawdown,
+        )
 
-        position_size = min(position_size, max_position_size)
-
-        # Apply signal strength-based position sizing (Fix #6)
-        signal_multiplier = self.calculate_signal_strength_multiplier(signal.confidence)
-        position_size = position_size * signal_multiplier
+        atr = indicators.atr if indicators.atr else current_price * 0.02
 
         return {
-            'size': position_size,
-            'stop_loss': stop_loss,
-            'take_profit': take_profit,
-            'risk_amount': risk_amount,
-            'atr': atr,
-            'atr_multiplier': atr_multiplier,
-            'signal_strength': signal.confidence,
-            'signal_multiplier': signal_multiplier
+            "size": position_result.position_size,
+            "stop_loss": stop_loss,
+            "take_profit": take_profit,
+            "risk_amount": position_result.risk_amount,
+            "atr": atr,
+            "atr_multiplier": atr_multiplier,
+            "signal_strength": signal.confidence,
+            "regime_metrics": regime_metrics.to_dict() if regime_metrics else None,
         }
 
-    def process_candle(self, symbol: str, candle: Dict[str, float], timestamp: datetime,
-                       current_balance: float) -> Optional[Dict[str, Any]]:
+    def _calculate_recent_performance(self) -> Dict[str, Any]:
+        """Calculate recent performance metrics for position sizing."""
+        if len(self.trade_history) < 10:
+            return {"win_rate": 0.5}
+
+        recent_trades = self.trade_history[-20:]
+        wins = sum(1 for t in recent_trades if t.get("pnl", 0) > 0)
+        win_rate = wins / len(recent_trades)
+
+        return {"win_rate": win_rate}
+
+    def _calculate_current_drawdown(self) -> float:
+        """Calculate current drawdown from trade history."""
+        if not self.trade_history:
+            return 0.0
+
+        # Use initial account balance
+        balance = self.account_balance
+        peak_balance = balance
+        current_balance = balance
+
+        for trade in self.trade_history:
+            pnl = trade.get("pnl", 0)
+            current_balance += pnl
+            peak_balance = max(peak_balance, current_balance)
+
+        if peak_balance > 0:
+            drawdown = (peak_balance - current_balance) / peak_balance
+            return max(0.0, drawdown)
+
+        return 0.0
+
+    def process_candle(
+        self,
+        symbol: str,
+        candle: Dict[str, float],
+        timestamp: datetime,
+        current_balance: float,
+    ) -> Optional[Dict[str, Any]]:
         """
         Process a candle and generate trading decision.
 
@@ -524,18 +704,18 @@ class BacktestStrategyEngine:
             return None
 
         # Calculate position size
-        position_info = self.calculate_position_size(symbol, signal, candle['close'])
+        position_info = self.calculate_position_size(symbol, signal, candle["close"])
 
-        if position_info['size'] <= 0:
+        if position_info["size"] <= 0:
             return None
 
         return {
-            'signal': signal,
-            'position_size': position_info['size'],
-            'entry_price': candle['close'],
-            'stop_loss': position_info['stop_loss'],
-            'take_profit': position_info['take_profit'],
-            'atr': position_info['atr']
+            "signal": signal,
+            "position_size": position_info["size"],
+            "entry_price": candle["close"],
+            "stop_loss": position_info["stop_loss"],
+            "take_profit": position_info["take_profit"],
+            "atr": position_info["atr"],
         }
 
     def _passes_regime_filter(self, indicators: IndicatorValues) -> bool:
@@ -551,9 +731,14 @@ class BacktestStrategyEngine:
 
         return adx_ok and ema_spread_ok
 
-    def check_position_exit(self, symbol: str, candle: Dict[str, float],
-                           timestamp: datetime, entry_price: float,
-                           position_type: str) -> Optional[ExitSignal]:
+    def check_position_exit(
+        self,
+        symbol: str,
+        candle: Dict[str, float],
+        timestamp: datetime,
+        entry_price: float,
+        position_type: str,
+    ) -> Optional[ExitSignal]:
         """
         Check if an open position should be exited.
 
@@ -576,12 +761,15 @@ class BacktestStrategyEngine:
             return None
 
         # Check for exit signal using SignalDetector
-        exit_signal = self.check_exit_signal(symbol, indicators, entry_price, position_type)
+        exit_signal = self.check_exit_signal(
+            symbol, indicators, entry_price, position_type
+        )
 
         return exit_signal
 
-    def register_position(self, symbol: str, entry_price: float,
-                         position_type: str, position_size: float) -> None:
+    def register_position(
+        self, symbol: str, entry_price: float, position_type: str, position_size: float
+    ) -> None:
         """
         Register an open position for exit signal tracking.
 
@@ -592,10 +780,10 @@ class BacktestStrategyEngine:
             position_size: Position size
         """
         self.open_positions[symbol] = {
-            'entry_price': entry_price,
-            'position_type': position_type,
-            'position_size': position_size,
-            'entry_time': datetime.now()
+            "entry_price": entry_price,
+            "position_type": position_type,
+            "position_size": position_size,
+            "entry_time": datetime.now(),
         }
 
     def close_position(self, symbol: str) -> None:

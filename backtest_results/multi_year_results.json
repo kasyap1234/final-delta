@@ -1,0 +1,38 @@
+{
+  "2023": {
+    "total_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown": 0.0,
+    "total_trades": 0,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "total_pnl": 0,
+    "gross_profit": 0,
+    "gross_loss": 0,
+    "final_equity": 10000.0
+  },
+  "2024": {
+    "total_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown": 0.0,
+    "total_trades": 0,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "total_pnl": 0,
+    "gross_profit": 0,
+    "gross_loss": 0,
+    "final_equity": 10000.0
+  },
+  "2025": {
+    "total_return": 0.0,
+    "sharpe_ratio": 0.0,
+    "max_drawdown": 0.0,
+    "total_trades": 0,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "total_pnl": 0,
+    "gross_profit": 0,
+    "gross_loss": 0,
+    "final_equity": 10000.0
+  }
+}
