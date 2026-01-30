@@ -358,18 +358,23 @@ class BacktestHedgeManager:
         )
 
         try:
+            # Use limit orders to match live bot behavior
             order = await self.exchange_client.create_order(
                 symbol=hedge.symbol,
                 side=close_side,
-                order_type='market',
-                amount=hedge.size
+                order_type='limit',
+                amount=hedge.size,
+                price=hedge.current_price,
+                post_only=False  # Allow taker for closing
             )
 
             if order.get('id'):
+                # Use actual fill price from order for P&L calculation
+                fill_price = order.get('average', order.get('price', hedge.current_price))
                 if hedge.side == 'long':
-                    realized_pnl = (hedge.current_price - hedge.entry_price) * hedge.size
+                    realized_pnl = (fill_price - hedge.entry_price) * hedge.size
                 else:
-                    realized_pnl = (hedge.entry_price - hedge.current_price) * hedge.size
+                    realized_pnl = (hedge.entry_price - fill_price) * hedge.size
 
                 hedge.realized_pnl = realized_pnl
                 hedge.status = "closed"

@@ -65,8 +65,8 @@ logger = get_logger(__name__)
 
 
 @dataclass
-class TradingBotConfig:
-    """Configuration for the trading bot."""
+class BotRuntimeConfig:
+    """Runtime configuration for the trading bot."""
     check_interval: float = 5.0  # Seconds between trading cycles
     max_retries: int = 3
     retry_delay: float = 1.0
@@ -161,7 +161,7 @@ class TradingBot:
             config: TradingBotConfig with all settings
         """
         self.config = config
-        self.bot_config = TradingBotConfig()
+        self.bot_config = BotRuntimeConfig()
         
         # State
         self.running = False
@@ -268,9 +268,11 @@ class TradingBot:
             # 5. Initialize indicators and signal detector
             strategy_config = self.config.strategy.dict()
             self.indicator_manager = IndicatorManager(strategy_config)
+            
+            # Use RSI thresholds from config (now aligned with backtest: 70/30)
             self.signal_detector = SignalDetector({
-                'rsi_overbought': strategy_config.get('rsi_long_threshold', 60) + 10,
-                'rsi_oversold': strategy_config.get('rsi_short_threshold', 40) - 10,
+                'rsi_overbought': strategy_config.get('rsi_short_threshold', 30),
+                'rsi_oversold': strategy_config.get('rsi_long_threshold', 70),
             })
             logger.info("Indicator components initialized")
             
@@ -399,20 +401,14 @@ class TradingBot:
             await self.stream_manager.start()
             
             # Subscribe to symbols
-            await self.stream_manager.subscribe_symbols(self.symbols)
-            logger.info(f"Subscribed to {len(self.symbols)} symbols")
+            for symbol in self.symbols:
+                await self.stream_manager.subscribe_symbol(symbol)
             
-            # Start order manager
-            await self.order_manager.start()
-            
-            # Start hedge manager if enabled
-            if self.hedge_manager:
-                await self.hedge_manager.start()
-            
-            self.running = True
-            self._shutdown_event.clear()
+            # Wait a moment for initial data
+            await asyncio.sleep(2)
             
             # Start trading loop
+            self.running = True
             self._trading_task = asyncio.create_task(self._trading_loop())
             
             logger.info("Trading bot started successfully")
@@ -422,177 +418,104 @@ class TradingBot:
             logger.error(f"Failed to start trading bot: {e}", exc_info=True)
             return False
     
-    async def stop(self) -> bool:
-        """
-        Stop the trading bot gracefully.
-        
-        Returns:
-            True if stopped successfully, False otherwise
-        """
+    async def stop(self):
+        """Stop the trading bot."""
         if not self.running:
-            logger.warning("Bot is not running")
-            return True
+            return
         
-        try:
-            logger.info("Stopping trading bot...")
-            
-            self.running = False
-            self._shutdown_event.set()
-            
-            # Cancel trading loop
-            if self._trading_task:
-                self._trading_task.cancel()
-                try:
-                    await self._trading_task
-                except asyncio.CancelledError:
-                    pass
-            
-            # Save state
-            if self.state_manager:
-                self._update_state_manager()
-                self.state_manager.save_state()
-            
-            # Stop hedge manager
-            if self.hedge_manager:
-                await self.hedge_manager.stop()
-            
-            # Stop order manager
-            if self.order_manager:
-                await self.order_manager.stop()
-            
-            # Stop stream manager
-            if self.stream_manager:
-                await self.stream_manager.stop()
-            
-            # Close exchange
-            if self.exchange:
-                await self.exchange.close()
-            
-            # Close database
-            if self.db_manager:
-                self.db_manager.close()
-            
-            logger.info("Trading bot stopped")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error stopping trading bot: {e}", exc_info=True)
-            return False
+        logger.info("Stopping trading bot...")
+        self.running = False
+        self._shutdown_event.set()
+        
+        # Cancel trading loop
+        if self._trading_task:
+            self._trading_task.cancel()
+            try:
+                await self._trading_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Stop stream manager
+        if self.stream_manager:
+            await self.stream_manager.stop()
+        
+        # Save state
+        if self.state_manager:
+            self.state_manager.save_state()
+        
+        # Close exchange connection
+        if self.exchange:
+            await self.exchange.close()
+        
+        logger.info("Trading bot stopped")
     
     async def _trading_loop(self):
         """Main trading loop."""
         logger.info("Trading loop started")
         
-        while self.running and not self._shutdown_event.is_set():
+        while self.running:
             try:
-                cycle_start = datetime.now()
-                
-                # 1. Update market data
-                await self._update_market_data()
-                
-                # 2. Calculate indicators
-                self._calculate_indicators()
-                
-                # 3. Process signals (entry)
-                await self._process_entry_signals()
-                
-                # 4. Manage open positions (exit, hedges)
-                await self._manage_positions()
-                
-                # 5. Update hedge status
-                if self.hedge_manager:
-                    await self._handle_hedges()
-                
-                # 6. Save state periodically
-                self._update_state_manager()
-                if len(self.open_positions) > 0 or len(self.active_orders) > 0:
-                    self.state_manager.save_state()
-                
-                # Calculate sleep time
-                cycle_duration = (datetime.now() - cycle_start).total_seconds()
-                sleep_time = max(0, self.bot_config.check_interval - cycle_duration)
-                
-                logger.debug(f"Trading cycle completed in {cycle_duration:.2f}s, "
-                            f"sleeping for {sleep_time:.2f}s")
-                
-                # Wait for next cycle or shutdown
+                # Wait for shutdown event with timeout
                 try:
                     await asyncio.wait_for(
                         self._shutdown_event.wait(),
-                        timeout=sleep_time
+                        timeout=self.bot_config.check_interval
                     )
+                    break  # Shutdown requested
                 except asyncio.TimeoutError:
-                    pass
-                    
+                    pass  # Continue trading
+                
+                # Update indicators
+                await self._update_indicators()
+                
+                # Process entry signals
+                await self._process_entry_signals()
+                
+                # Manage open positions
+                await self._manage_positions()
+                
+                # Handle hedges
+                await self._handle_hedges()
+                
+                # Save state periodically
+                if self.state_manager:
+                    self.state_manager.save_state()
+                
             except asyncio.CancelledError:
-                logger.info("Trading loop cancelled")
                 break
             except Exception as e:
                 logger.error(f"Error in trading loop: {e}", exc_info=True)
-                await asyncio.sleep(self.bot_config.check_interval)
+                await asyncio.sleep(1)
         
         logger.info("Trading loop ended")
     
-    async def _update_market_data(self):
-        """Update market data from stream manager."""
-        try:
-            for symbol in self.symbols:
-                price = self.stream_manager.get_last_price(symbol)
-                if price:
-                    self.state_manager.update_last_price(symbol, price)
-                    
-                    # Update portfolio tracker
-                    self.portfolio_tracker.update_price(symbol, price)
-                    
-                    # Update open positions
-                    for pos_id, pos in self.open_positions.items():
-                        if pos['symbol'] == symbol:
-                            pos['current_price'] = price
-                            
-                            # Calculate unrealized P&L
-                            if pos['side'] == 'long':
-                                pos['unrealized_pnl'] = (price - pos['entry_price']) * pos['size']
-                            else:
-                                pos['unrealized_pnl'] = (pos['entry_price'] - price) * pos['size']
-        
-        except Exception as e:
-            logger.error(f"Error updating market data: {e}")
-    
-    def _calculate_indicators(self):
-        """Calculate technical indicators for all symbols."""
+    async def _update_indicators(self):
+        """Update technical indicators for all symbols."""
         try:
             for symbol in self.symbols:
                 # Get OHLCV data from cache
                 ohlcv = self.data_cache.get_ohlcv(symbol)
                 
-                if ohlcv and len(ohlcv) > 50:
+                if ohlcv and len(ohlcv) >= 50:  # Need enough data
                     # Calculate indicators
-                    indicators = self.indicator_manager.calculate_all(symbol, ohlcv)
+                    indicators = self.indicator_manager.calculate(ohlcv)
                     self.indicators[symbol] = indicators
                     
-                    logger.debug(f"Indicators calculated for {symbol}")
-        
         except Exception as e:
-            logger.error(f"Error calculating indicators: {e}")
+            logger.error(f"Error updating indicators: {e}")
     
     async def _process_entry_signals(self):
-        """Check for and process entry signals."""
+        """Process entry signals for all symbols."""
         try:
-            # Check if we can open new positions
-            if len(self.open_positions) >= self.config.trading.max_positions:
-                logger.debug("Max positions reached, skipping entry signals")
-                return
-            
             for symbol in self.symbols:
-                # Skip if already have position in this symbol
-                has_position = any(
-                    p['symbol'] == symbol 
-                    for p in self.open_positions.values()
-                )
-                if has_position:
+                # Skip if already at max positions
+                if len(self.open_positions) >= self.config.trading.max_positions:
+                    break
+                
+                # Skip if already have position for this symbol
+                if any(p['symbol'] == symbol for p in self.open_positions.values()):
                     continue
                 
-                # Get indicators
                 indicators = self.indicators.get(symbol)
                 if not indicators:
                     continue
@@ -624,29 +547,170 @@ class TradingBot:
         except Exception as e:
             logger.error(f"Error processing entry signals: {e}")
     
+    def _passes_regime_filter(self, indicators: IndicatorValues) -> bool:
+        """
+        Filter out low-trend conditions using ADX and EMA spread.
+        Matches backtest regime filtering.
+        
+        Args:
+            indicators: IndicatorValues with ADX and EMA data
+            
+        Returns:
+            True if market regime is suitable for entry
+        """
+        # Check if regime filtering is enabled
+        if not self.config.strategy.min_adx_for_entry and not self.config.strategy.min_ema_spread_for_entry:
+            return True
+        
+        adx_ok = True
+        if indicators.adx is not None and self.config.strategy.min_adx_for_entry > 0:
+            adx_ok = indicators.adx >= self.config.strategy.min_adx_for_entry
+        
+        ema_spread_ok = True
+        if (indicators.ema_fast and indicators.ema_slow and indicators.ema_slow > 0 and 
+            self.config.strategy.min_ema_spread_for_entry > 0):
+            ema_spread = abs(indicators.ema_fast - indicators.ema_slow) / indicators.ema_slow
+            ema_spread_ok = ema_spread >= self.config.strategy.min_ema_spread_for_entry
+        
+        return adx_ok and ema_spread_ok
+    
+    def calculate_dynamic_atr_multiplier(self, indicators: IndicatorValues) -> float:
+        """
+        Calculate dynamic ATR multiplier based on market volatility.
+        Increases multiplier in high volatility conditions to avoid premature stop-outs.
+        Matches backtest implementation.
+        
+        Args:
+            indicators: IndicatorValues object with ATR and price data
+            
+        Returns:
+            Adjusted ATR multiplier
+        """
+        # Check if dynamic ATR is enabled
+        if not self.config.strategy.enable_dynamic_atr:
+            return self.config.strategy.atr_multiplier
+        
+        base_multiplier = self.config.strategy.atr_multiplier  # 2.0
+        
+        if indicators.atr and indicators.ema_slow:
+            # Calculate ATR as percentage of price
+            atr_percent = indicators.atr / indicators.ema_slow
+            
+            high_vol_threshold = self.config.strategy.high_volatility_atr_threshold
+            
+            # High volatility regime (choppy market) - widen stops
+            if atr_percent > high_vol_threshold:  # 3% ATR
+                return base_multiplier * 1.5  # 3.0
+            # Medium-high volatility
+            elif atr_percent > high_vol_threshold * 0.83:  # 2.5% ATR
+                return base_multiplier * 1.25  # 2.5
+            # Medium volatility
+            elif atr_percent > high_vol_threshold * 0.67:  # 2% ATR
+                return base_multiplier * 1.1  # 2.2
+        
+        return base_multiplier
+    
+    def calculate_adaptive_rr_ratio(self, indicators: IndicatorValues) -> float:
+        """
+        Reduce profit targets in ranging markets.
+        Matches backtest implementation.
+        
+        Args:
+            indicators: IndicatorValues with EMA data
+            
+        Returns:
+            Adjusted risk:reward ratio
+        """
+        # Check if adaptive R:R is enabled
+        if not self.config.strategy.enable_adaptive_rr:
+            return self.config.risk_management.take_profit_r_ratio
+        
+        base_rr = self.config.risk_management.take_profit_r_ratio  # 2.0
+        
+        # Detect ranging market (EMAs close together)
+        if indicators.ema_fast and indicators.ema_medium and indicators.ema_slow:
+            ema_range = abs(indicators.ema_fast - indicators.ema_slow) / indicators.ema_slow
+            
+            ranging_threshold = self.config.strategy.ranging_ema_threshold
+            
+            if ema_range < ranging_threshold:  # Tight EMAs = ranging
+                return 1.5  # Lower target
+            elif ema_range < ranging_threshold * 2:  # Medium range
+                return 1.75
+        
+        return base_rr
+    
+    def calculate_signal_strength_multiplier(self, signal_confidence: float) -> float:
+        """
+        Calculate position size multiplier based on signal strength.
+        
+        Position sizing based on signal quality:
+        - strength >= 0.8: 100% position (full size)
+        - strength 0.6-0.8: 75% position
+        - strength 0.4-0.6: 50% position
+        - strength < 0.4: 25% position
+        
+        This preserves bull market gains (strong signals = full size)
+        while reducing choppy market losses (weak signals = smaller size).
+        
+        Matches backtest implementation.
+        
+        Args:
+            signal_confidence: Signal strength from 0.0 to 1.0
+            
+        Returns:
+            Position size multiplier (0.25 to 1.0)
+        """
+        # Check if signal strength sizing is enabled
+        if not self.config.strategy.enable_signal_strength_sizing:
+            return 1.0
+        
+        strong_threshold = self.config.strategy.strong_signal_threshold
+        weak_threshold = self.config.strategy.weak_signal_threshold
+        
+        if signal_confidence >= strong_threshold:
+            return 1.0  # Full position
+        elif signal_confidence >= 0.6:
+            return 0.75  # 75% position
+        elif signal_confidence >= weak_threshold:
+            return 0.5  # 50% position
+        else:
+            return 0.25  # 25% position (minimum)
+    
     async def _execute_entry(self, signal: Signal, indicators: IndicatorValues):
         """Execute entry order for a signal."""
         try:
             symbol = signal.symbol
             current_price = signal.price
             
+            # Apply regime filter (matching backtest)
+            if not self._passes_regime_filter(indicators):
+                logger.info(f"Signal rejected due to regime filter: {symbol}")
+                return
+            
             # Determine side
             side = 'long' if signal.signal in (SignalType.BUY, SignalType.STRONG_BUY) else 'short'
+            
+            # Calculate dynamic ATR multiplier
+            atr_multiplier = self.calculate_dynamic_atr_multiplier(indicators)
             
             # Calculate stop loss
             atr = indicators.atr or (current_price * 0.02)  # Default 2% if no ATR
             stop_loss_result = self.position_sizer.calculate_stop_loss(
                 entry_price=current_price,
                 atr_value=atr,
-                atr_multiplier=self.config.strategy.atr_multiplier,
+                atr_multiplier=atr_multiplier,
                 position_type=side
             )
+            
+            # Calculate adaptive R:R ratio
+            adaptive_rr = self.calculate_adaptive_rr_ratio(indicators)
             
             # Calculate take profit
             take_profit_result = self.position_sizer.calculate_take_profit(
                 entry_price=current_price,
                 stop_loss_price=stop_loss_result.stop_loss_price,
-                risk_reward_ratio=self.config.risk_management.take_profit_r_ratio,
+                risk_reward_ratio=adaptive_rr,
                 position_type=side
             )
             
@@ -664,10 +728,19 @@ class TradingBot:
                 logger.warning(f"Invalid position size for {symbol}: {position_result.error_message}")
                 return
             
+            # Apply signal strength-based position sizing
+            signal_multiplier = self.calculate_signal_strength_multiplier(signal.strength)
+            adjusted_position_size = position_result.position_size * signal_multiplier
+            
+            # Log position sizing details
+            logger.info(f"Position sizing for {symbol}: base={position_result.position_size:.4f}, "
+                       f"signal_strength={signal.strength:.2f}, multiplier={signal_multiplier:.2f}, "
+                       f"final={adjusted_position_size:.4f}")
+            
             # Check risk limits
             risk_check = self.risk_manager.can_open_position(
                 symbol=symbol,
-                position_size=position_result.position_size,
+                position_size=adjusted_position_size,
                 stop_loss_price=stop_loss_result.stop_loss_price,
                 entry_price=current_price,
                 current_positions=self._get_position_risks()
@@ -681,7 +754,7 @@ class TradingBot:
             order_result = await self.order_manager.place_entry_order(
                 symbol=symbol,
                 side='buy' if side == 'long' else 'sell',
-                amount=position_result.position_size,
+                amount=adjusted_position_size,
                 price=current_price,
                 stop_loss=stop_loss_result.stop_loss_price,
                 take_profit=take_profit_result.take_profit_price
@@ -697,44 +770,58 @@ class TradingBot:
                     'side': side,
                     'entry_price': current_price,
                     'current_price': current_price,
-                    'size': position_result.position_size,
-                    'unrealized_pnl': 0.0,
+                    'size': adjusted_position_size,
                     'stop_loss': stop_loss_result.stop_loss_price,
                     'take_profit': take_profit_result.take_profit_price,
-                    'risk_amount': position_result.risk_amount,
-                    'entry_time': datetime.now().isoformat(),
-                    'order_id': order_result.order_id
+                    'entry_time': datetime.now(),
+                    'risk_amount': account_balance * (self.config.risk_management.risk_per_trade_percent / 100),
+                    'signal_strength': signal.strength,
+                    'atr_multiplier': atr_multiplier,
+                    'rr_ratio': adaptive_rr,
                 }
                 
                 self.open_positions[position_data['id']] = position_data
                 self.state_manager.add_position(position_data)
                 
-                # Add to portfolio tracker
+                # Track with portfolio tracker
                 self.portfolio_tracker.add_position(
                     symbol=symbol,
                     side=side,
-                    size=position_result.position_size,
+                    size=adjusted_position_size,
                     entry_price=current_price,
                     stop_loss=stop_loss_result.stop_loss_price,
                     take_profit=take_profit_result.take_profit_price,
-                    risk_amount=position_result.risk_amount
+                    risk_amount=position_data['risk_amount']
                 )
                 
                 # Register with hedge manager
                 if self.hedge_manager:
                     self.hedge_manager.register_position(position_data)
                 
-                # Save to database
-                self._save_trade_to_db(position_data, signal)
+                # Log to database
+                self._log_entry_to_db(position_data, signal)
                 
             else:
                 logger.error(f"Failed to place entry order for {symbol}: {order_result.error_message}")
         
         except Exception as e:
-            logger.error(f"Error executing entry: {e}", exc_info=True)
+            logger.error(f"Error executing entry for {signal.symbol}: {e}", exc_info=True)
+    
+    def _get_position_risks(self) -> List[Dict[str, Any]]:
+        """Get current position risks for risk manager."""
+        risks = []
+        for pos_id, position in self.open_positions.items():
+            risks.append({
+                'symbol': position['symbol'],
+                'size': position['size'],
+                'entry_price': position['entry_price'],
+                'stop_loss': position.get('stop_loss'),
+                'side': position['side'],
+            })
+        return risks
     
     async def _manage_positions(self):
-        """Manage open positions (check exits, update status)."""
+        """Manage open positions (check stops, take profits, exit signals)."""
         try:
             positions_to_close = []
             
@@ -744,6 +831,9 @@ class TradingBot:
                 
                 if not current_price:
                     continue
+                
+                # Update current price
+                position['current_price'] = current_price
                 
                 # Check stop loss
                 if position['side'] == 'long':
@@ -849,127 +939,92 @@ class TradingBot:
             if not self.hedge_manager:
                 return
             
-            # Check hedge triggers for open positions
+            # Check each open position for hedge triggers
             for pos_id, position in self.open_positions.items():
-                trigger_result = self.hedge_manager.check_hedge_trigger(position)
+                # Get current price
+                current_price = self.state_manager.get_last_price(position['symbol'])
+                if not current_price:
+                    continue
+                
+                # Check if hedge should be triggered
+                trigger_result = self.hedge_manager.check_hedge_trigger(
+                    position=position,
+                    current_price=current_price
+                )
                 
                 if trigger_result.should_hedge:
-                    logger.info(f"Hedge trigger for {position['symbol']}: {trigger_result.message}")
+                    logger.info(f"Hedge triggered for {position['symbol']}: {trigger_result.reason}")
                     
-                    # Open hedge
-                    hedge_result = await self.hedge_manager.open_hedge(position)
+                    # Execute hedge
+                    hedge_result = await self.hedge_manager.execute_hedge(
+                        position=position,
+                        trigger_result=trigger_result
+                    )
                     
-                    if hedge_result and hedge_result.success:
-                        logger.info(f"Hedge opened for {position['symbol']}: {hedge_result.hedge_id}")
+                    if hedge_result.success:
+                        logger.info(f"Hedge executed for {position['symbol']}")
                     else:
-                        logger.error(f"Failed to open hedge for {position['symbol']}")
-            
-            # Update hedge status
-            await self.hedge_manager.update_hedge_status()
+                        logger.warning(f"Hedge execution failed: {hedge_result.error_message}")
         
         except Exception as e:
             logger.error(f"Error handling hedges: {e}")
     
-    def _update_state_manager(self):
-        """Update state manager with current positions."""
-        try:
-            # State manager already tracks positions via add/remove/update methods
-            # Just update prices
-            for symbol in self.symbols:
-                price = self.state_manager.get_last_price(symbol)
-                if price:
-                    for pos_id, position in self.open_positions.items():
-                        if position['symbol'] == symbol:
-                            self.state_manager.update_position(pos_id, {
-                                'current_price': price,
-                                'unrealized_pnl': position.get('unrealized_pnl', 0)
-                            })
-        
-        except Exception as e:
-            logger.error(f"Error updating state manager: {e}")
-    
-    def _get_position_risks(self) -> List[Dict[str, Any]]:
-        """Get current positions in risk manager format."""
-        risks = []
-        for position in self.open_positions.values():
-            risks.append({
-                'symbol': position['symbol'],
-                'size': position['size'],
-                'entry_price': position['entry_price'],
-                'stop_loss_price': position.get('stop_loss'),
-                'side': position['side']
-            })
-        return risks
-    
     def _log_signal(self, signal: Signal):
         """Log signal to database."""
         try:
-            from ..database import Signal as SignalModel
-            
-            signal_model = SignalModel(
-                symbol=signal.symbol,
-                signal_type=signal.signal.value,
-                price=signal.price,
-                strength=signal.strength,
-                reason=signal.reason,
-                details=signal.details
-            )
-            self.db_manager.save_signal(signal_model)
-        
+            if self.db_manager:
+                self.db_manager.log_signal(
+                    symbol=signal.symbol,
+                    signal_type=signal.signal.value,
+                    strength=signal.strength,
+                    price=signal.price,
+                    timestamp=datetime.now()
+                )
         except Exception as e:
             logger.error(f"Error logging signal: {e}")
     
-    def _save_trade_to_db(self, position_data: Dict[str, Any], signal: Signal):
-        """Save trade entry to database."""
+    def _log_entry_to_db(self, position_data: Dict[str, Any], signal: Signal):
+        """Log entry to database."""
         try:
-            trade = Trade(
-                id=position_data['id'],
-                symbol=position_data['symbol'],
-                side=TradeSide.LONG if position_data['side'] == 'long' else TradeSide.SHORT,
-                entry_price=position_data['entry_price'],
-                quantity=position_data['size'],
-                entry_time=datetime.fromisoformat(position_data['entry_time']),
-                status=TradeStatus.OPEN,
-                stop_loss_price=position_data.get('stop_loss'),
-                take_profit_price=position_data.get('take_profit'),
-                metadata={
-                    'signal_strength': signal.strength,
-                    'signal_reason': signal.reason
-                }
-            )
-            self.db_manager.save_trade(trade)
-        
+            if self.db_manager:
+                trade = Trade(
+                    id=position_data['id'],
+                    symbol=position_data['symbol'],
+                    side=TradeSide.LONG if position_data['side'] == 'long' else TradeSide.SHORT,
+                    entry_price=position_data['entry_price'],
+                    size=position_data['size'],
+                    stop_loss=position_data.get('stop_loss'),
+                    take_profit=position_data.get('take_profit'),
+                    entry_time=position_data['entry_time'],
+                    status=TradeStatus.OPEN,
+                    signal_strength=signal.strength,
+                )
+                self.db_manager.save_trade(trade)
         except Exception as e:
-            logger.error(f"Error saving trade to database: {e}")
+            logger.error(f"Error logging entry: {e}")
     
-    def _update_trade_in_db(self, position_id: str, exit_price: float, realized_pnl: float, reason: str):
-        """Update trade in database on close."""
+    def _update_trade_in_db(self, position_id: str, exit_price: float, 
+                           realized_pnl: float, reason: str):
+        """Update trade in database when closed."""
         try:
-            trade = self.db_manager.get_trade(position_id)
-            if trade:
-                trade.status = TradeStatus.CLOSED
-                trade.exit_price = exit_price
-                trade.realized_pnl = realized_pnl
-                trade.exit_time = datetime.now()
-                trade.close_reason = reason
-                self.db_manager.update_trade(trade)
-        
+            if self.db_manager:
+                self.db_manager.close_trade(
+                    trade_id=position_id,
+                    exit_price=exit_price,
+                    realized_pnl=realized_pnl,
+                    exit_reason=reason,
+                    exit_time=datetime.now()
+                )
         except Exception as e:
-            logger.error(f"Error updating trade in database: {e}")
+            logger.error(f"Error updating trade: {e}")
     
     def get_status(self) -> Dict[str, Any]:
-        """
-        Get current bot status.
-        
-        Returns:
-            Dictionary with bot status information
-        """
+        """Get current bot status."""
         return {
             'running': self.running,
             'initialized': self.initialized,
             'open_positions': len(self.open_positions),
             'active_orders': len(self.active_orders),
             'portfolio_value': self.portfolio_tracker.get_total_value() if self.portfolio_tracker else 0,
-            'unrealized_pnl': sum(p.get('unrealized_pnl', 0) for p in self.open_positions.values()),
-            'state': self.state_manager.get_state_summary() if self.state_manager else {}
+            'unrealized_pnl': self.portfolio_tracker.get_unrealized_pnl() if self.portfolio_tracker else 0,
         }

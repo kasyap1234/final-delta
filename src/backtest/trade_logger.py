@@ -146,17 +146,17 @@ class TradeLogger:
         else:
             # Calculate summary statistics
             total_trades = len(trades)
-            winning_trades = sum(1 for t in trades if t.get('realized_pnl', 0) > 0)
-            losing_trades = sum(1 for t in trades if t.get('realized_pnl', 0) < 0)
+            winning_trades = sum(1 for t in trades if t.get('pnl', 0) > 0)
+            losing_trades = sum(1 for t in trades if t.get('pnl', 0) < 0)
             win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
             
-            total_pnl = sum(t.get('realized_pnl', 0) for t in trades)
-            total_fees = sum(t.get('fees_paid', 0) for t in trades)
+            total_pnl = sum(t.get('pnl', 0) for t in trades)
+            total_fees = sum(t.get('fees', 0) for t in trades)
             
-            avg_win = sum(t.get('realized_pnl', 0) for t in trades if t.get('realized_pnl', 0) > 0)
+            avg_win = sum(t.get('pnl', 0) for t in trades if t.get('pnl', 0) > 0)
             avg_win = avg_win / winning_trades if winning_trades > 0 else 0.0
             
-            avg_loss = sum(t.get('realized_pnl', 0) for t in trades if t.get('realized_pnl', 0) < 0)
+            avg_loss = sum(t.get('pnl', 0) for t in trades if t.get('pnl', 0) < 0)
             avg_loss = avg_loss / losing_trades if losing_trades > 0 else 0.0
             
             summary = []

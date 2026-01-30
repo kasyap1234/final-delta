@@ -1,0 +1,189 @@
+{
+  "report_id": "e1ab743b",
+  "generated_at": "2026-01-29T21:52:47.651860",
+  "start_time": "2026-01-29T21:52:47.651861",
+  "end_time": "2026-01-29T21:52:47.651861",
+  "symbols": [
+    "BTC/USDT"
+  ],
+  "signal_comparisons": [],
+  "order_comparisons": [],
+  "position_comparisons": [],
+  "pnl_comparisons": [],
+  "risk_comparisons": [],
+  "timing_comparisons": [],
+  "state_transitions": [],
+  "metrics": {
+    "signal_generation": {
+      "category": "signal_generation",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "order_execution": {
+      "category": "order_execution",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "position_management": {
+      "category": "position_management",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "pnl_calculation": {
+      "category": "pnl_calculation",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "risk_management": {
+      "category": "risk_management",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "timing": {
+      "category": "timing",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "state_transition": {
+      "category": "state_transition",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    }
+  },
+  "overall_severity": "none",
+  "passed_validation": true,
+  "summary": {
+    "report_id": "e1ab743b",
+    "generated_at": "2026-01-29T21:52:47.651860",
+    "test_period": {
+      "start": "2026-01-29T21:52:47.651861",
+      "end": "2026-01-29T21:52:47.651861"
+    },
+    "symbols": [
+      "BTC/USDT"
+    ],
+    "total_comparisons": 0,
+    "total_divergences": 0,
+    "divergence_rate": 0.0,
+    "overall_severity": "none",
+    "passed_validation": true,
+    "category_metrics": {
+      "signal_generation": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "order_execution": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "position_management": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "pnl_calculation": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "risk_management": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "timing": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "state_transition": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      }
+    },
+    "critical_issues": [],
+    "recommendations": [
+      "No significant divergences found. Backtest fidelity is good."
+    ]
+  }
+}

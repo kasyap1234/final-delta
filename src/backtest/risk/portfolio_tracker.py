@@ -3,6 +3,7 @@
 This module provides portfolio tracking, P&L calculation, and risk reporting for backtesting.
 """
 
+import numpy as np
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -565,16 +566,15 @@ class PortfolioTracker:
         total_losses = sum(losses)
         profit_factor = (total_wins / total_losses) if total_losses > 0 else float('inf')
         
-        # Calculate Sharpe ratio (simplified)
+        # Calculate Sharpe ratio (simplified) - using numpy for consistency with live
         sharpe_ratio = None
         if len(self._trade_history) > 1:
             returns = [t.realized_pnl_percent for t in self._trade_history]
             if len(returns) > 1:
-                mean_return = sum(returns) / len(returns)
-                variance = sum((r - mean_return) ** 2 for r in returns) / (len(returns) - 1)
-                std_return = variance ** 0.5
+                mean_return = np.mean(returns)
+                std_return = np.std(returns, ddof=1)  # Use sample std for consistency
                 if std_return > 0:
-                    sharpe_ratio = (mean_return / std_return) * (252 ** 0.5)  # Annualized
+                    sharpe_ratio = (mean_return / std_return) * np.sqrt(252)  # Annualized
         
         # Today's trade count
         today = self._current_time if self._current_time else datetime.now()

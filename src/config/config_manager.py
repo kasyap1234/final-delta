@@ -78,12 +78,12 @@ class StrategySettings(BaseModel):
     ema_trend: int = Field(default=200, ge=1, description="Trend EMA period")
     rsi_period: int = Field(default=14, ge=1, description="RSI calculation period")
     rsi_long_threshold: float = Field(
-        default=60.0, ge=0, le=100,
-        description="RSI threshold for long signals"
+        default=70.0, ge=0, le=100,
+        description="RSI threshold for long signals (oversold level)"
     )
     rsi_short_threshold: float = Field(
-        default=40.0, ge=0, le=100,
-        description="RSI threshold for short signals"
+        default=30.0, ge=0, le=100,
+        description="RSI threshold for short signals (overbought level)"
     )
     atr_period: int = Field(default=14, ge=1, description="ATR calculation period")
     atr_multiplier: float = Field(
@@ -93,6 +93,48 @@ class StrategySettings(BaseModel):
     pivot_lookback: int = Field(
         default=10, ge=1,
         description="Lookback period for pivot/resistance detection"
+    )
+    
+    # Regime filter parameters (matching backtest)
+    min_adx_for_entry: float = Field(
+        default=15.0, ge=0,
+        description="Minimum ADX value for entry signals"
+    )
+    min_ema_spread_for_entry: float = Field(
+        default=0.005, ge=0,
+        description="Minimum EMA spread (as decimal) for entry signals (0.005 = 0.5%)"
+    )
+    
+    # Signal strength position sizing parameters (matching backtest)
+    enable_signal_strength_sizing: bool = Field(
+        default=True,
+        description="Enable position sizing based on signal strength"
+    )
+    strong_signal_threshold: float = Field(
+        default=0.8, ge=0, le=1.0,
+        description="Signal strength threshold for full position size"
+    )
+    weak_signal_threshold: float = Field(
+        default=0.3, ge=0, le=1.0,
+        description="Signal strength threshold for minimum position size"
+    )
+    
+    # Dynamic parameter adjustment (matching backtest)
+    enable_dynamic_atr: bool = Field(
+        default=True,
+        description="Enable dynamic ATR multiplier based on volatility"
+    )
+    enable_adaptive_rr: bool = Field(
+        default=True,
+        description="Enable adaptive risk:reward ratio based on market conditions"
+    )
+    high_volatility_atr_threshold: float = Field(
+        default=0.03, ge=0,
+        description="ATR% threshold for high volatility (3% = 0.03)"
+    )
+    ranging_ema_threshold: float = Field(
+        default=0.01, ge=0,
+        description="EMA range threshold for ranging market detection (1% = 0.01)"
     )
 
     @validator('rsi_long_threshold', 'rsi_short_threshold')
@@ -299,298 +341,97 @@ class ConfigManager:
             ValueError: If configuration format is invalid
             ValidationError: If configuration fails validation
         """
-        if config_path:
-            self._config_path = Path(config_path)
+        # Use provided path or stored path
+        path = Path(config_path) if config_path else self._config_path
         
-        if not self._config_path:
-            raise ValueError("No configuration path specified")
+        if path is None:
+            # No config file, use defaults with environment overrides
+            self._config = self._apply_env_overrides(TradingBotConfig())
+            return self._config
         
-        if not self._config_path.exists():
-            raise FileNotFoundError(
-                f"Configuration file not found: {self._config_path}"
-            )
+        if not path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {path}")
         
-        # Load raw configuration from file
-        self._raw_config = self._load_file(self._config_path)
-        
-        # Apply environment variable overrides
-        self._apply_env_overrides()
-        
-        # Validate and create configuration object
-        try:
-            self._config = TradingBotConfig(**self._raw_config)
-        except ValidationError as e:
-            raise ValidationError(
-                f"Configuration validation failed: {e}"
-            ) from e
-        
-        return self._config
-    
-    def _load_file(self, path: Path) -> Dict[str, Any]:
-        """
-        Load configuration from file based on extension.
-        
-        Args:
-            path: Path to configuration file
-        
-        Returns:
-            Dict containing configuration data
-        
-        Raises:
-            ValueError: If file format is not supported
-        """
+        # Load based on file extension
         suffix = path.suffix.lower()
         
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, 'r') as f:
                 if suffix in ['.yaml', '.yml']:
-                    return yaml.safe_load(f) or {}
+                    self._raw_config = yaml.safe_load(f)
                 elif suffix == '.json':
-                    return json.load(f)
+                    self._raw_config = json.load(f)
                 else:
-                    raise ValueError(
-                        f"Unsupported configuration format: {suffix}. "
-                        "Use .yaml, .yml, or .json"
-                    )
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML format: {e}") from e
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON format: {e}") from e
-    
-    def _apply_env_overrides(self) -> None:
-        """
-        Apply environment variable overrides to configuration.
+                    raise ValueError(f"Unsupported config format: {suffix}")
+        except Exception as e:
+            raise ValueError(f"Error reading config file: {e}")
         
-        Environment variables take precedence over file configuration.
-        """
+        # Parse and validate
+        self._config = TradingBotConfig.parse_obj(self._raw_config)
+        
+        # Apply environment overrides
+        self._config = self._apply_env_overrides(self._config)
+        
+        return self._config
+    
+    def _apply_env_overrides(self, config: TradingBotConfig) -> TradingBotConfig:
+        """Apply environment variable overrides to configuration."""
+        config_dict = config.dict()
+        
         for env_var, (section, key) in self.ENV_MAPPINGS.items():
             value = os.getenv(env_var)
             if value is not None:
                 # Convert string values to appropriate types
-                converted_value = self._convert_env_value(value, section, key)
+                if key in ['sandbox', 'testnet']:
+                    value = value.lower() in ['true', '1', 'yes']
+                elif key in ['account_balance']:
+                    value = float(value)
                 
-                # Ensure section exists
-                if section not in self._raw_config:
-                    self._raw_config[section] = {}
-                
-                # Apply override
-                self._raw_config[section][key] = converted_value
+                # Apply to config dict
+                if section in config_dict:
+                    config_dict[section][key] = value
+        
+        return TradingBotConfig.parse_obj(config_dict)
     
-    def _convert_env_value(
-        self, value: str, section: str, key: str
-    ) -> Union[str, bool, int, float]:
-        """
-        Convert environment variable string to appropriate type.
-        
-        Args:
-            value: String value from environment variable
-            section: Configuration section name
-            key: Configuration key name
-        
-        Returns:
-            Converted value with appropriate type
-        """
-        # Boolean fields
-        bool_fields = [
-            ('exchange', 'sandbox'),
-            ('exchange', 'testnet'),
-            ('order', 'post_only'),
-        ]
-        
-        if (section, key) in bool_fields:
-            return value.lower() in ('true', '1', 'yes', 'on')
-        
-        # Integer fields
-        int_fields = [
-            ('trading', 'max_positions'),
-            ('strategy', 'ema_fast'),
-            ('strategy', 'ema_medium'),
-            ('strategy', 'ema_slow'),
-            ('strategy', 'ema_trend'),
-            ('strategy', 'rsi_period'),
-            ('strategy', 'atr_period'),
-            ('strategy', 'pivot_lookback'),
-            ('hedge', 'hedge_chunks'),
-            ('hedge', 'correlation_lookback_days'),
-            ('hedge', 'max_hedges_per_position'),
-            ('order', 'retry_attempts'),
-            ('order', 'retry_delay_seconds'),
-        ]
-        
-        if (section, key) in int_fields:
-            try:
-                return int(value)
-            except ValueError:
-                raise ValueError(
-                    f"Environment variable {section.upper()}_{key.upper()} "
-                    f"must be an integer, got: {value}"
-                )
-        
-        # Float fields
-        float_fields = [
-            ('strategy', 'rsi_long_threshold'),
-            ('strategy', 'rsi_short_threshold'),
-            ('strategy', 'atr_multiplier'),
-            ('risk_management', 'account_balance'),
-            ('risk_management', 'risk_per_trade_percent'),
-            ('risk_management', 'max_risk_per_trade_percent'),
-            ('risk_management', 'take_profit_r_ratio'),
-            ('hedge', 'hedge_trigger_percent'),
-            ('hedge', 'hedge_size_ratio'),
-            ('order', 'price_offset_percent'),
-        ]
-        
-        if (section, key) in float_fields:
-            try:
-                return float(value)
-            except ValueError:
-                raise ValueError(
-                    f"Environment variable {section.upper()}_{key.upper()} "
-                    f"must be a number, got: {value}"
-                )
-        
-        # String fields (default)
-        return value
+    def get_config(self) -> TradingBotConfig:
+        """Get the current configuration."""
+        if self._config is None:
+            raise RuntimeError("Configuration not loaded. Call load_config() first.")
+        return self._config
     
-    def save_config(
-        self, config_path: Optional[Union[str, Path]] = None, format: str = 'yaml'
-    ) -> None:
+    def save_config(self, config_path: Optional[Union[str, Path]] = None):
         """
         Save current configuration to file.
         
         Args:
-            config_path: Path to save configuration. If not provided, uses the
-                        path specified during initialization.
-            format: Output format ('yaml' or 'json')
-        
-        Raises:
-            ValueError: If no configuration is loaded or format is invalid
+            config_path: Path to save configuration. If not provided, uses the path
+                        specified during initialization.
         """
-        if not self._config:
-            raise ValueError("No configuration loaded to save")
+        if self._config is None:
+            raise RuntimeError("No configuration to save")
         
-        save_path = Path(config_path) if config_path else self._config_path
-        if not save_path:
-            raise ValueError("No save path specified")
+        path = Path(config_path) if config_path else self._config_path
+        if path is None:
+            raise ValueError("No config path specified")
         
-        # Ensure parent directory exists
-        save_path.parent.mkdir(parents=True, exist_ok=True)
+        # Ensure directory exists
+        path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Convert config to dict
-        config_dict = self._config.dict()
+        # Save based on file extension
+        suffix = path.suffix.lower()
         
-        # Write to file
-        with open(save_path, 'w', encoding='utf-8') as f:
-            if format.lower() in ['yaml', 'yml']:
-                yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
-            elif format.lower() == 'json':
-                json.dump(config_dict, f, indent=2)
+        with open(path, 'w') as f:
+            if suffix in ['.yaml', '.yml']:
+                yaml.dump(self._config.dict(), f, default_flow_style=False)
+            elif suffix == '.json':
+                json.dump(self._config.dict(), f, indent=2)
             else:
-                raise ValueError(f"Unsupported format: {format}. Use 'yaml' or 'json'")
-    
-    def get_config(self) -> TradingBotConfig:
-        """
-        Get the current configuration.
-        
-        Returns:
-            TradingBotConfig: Current configuration object
-        
-        Raises:
-            ValueError: If no configuration is loaded
-        """
-        if not self._config:
-            raise ValueError("No configuration loaded. Call load_config() first.")
-        return self._config
-    
-    def get_trading_params(self) -> TradingSettings:
-        """Get trading-specific parameters."""
-        return self.get_config().trading
-    
-    def get_risk_params(self) -> RiskManagementSettings:
-        """Get risk management parameters."""
-        return self.get_config().risk_management
-    
-    def get_hedge_params(self) -> HedgeSettings:
-        """Get hedge configuration parameters."""
-        return self.get_config().hedge
-    
-    def get_exchange_params(self) -> ExchangeSettings:
-        """Get exchange connection parameters."""
-        return self.get_config().exchange
-    
-    def get_strategy_params(self) -> StrategySettings:
-        """Get strategy parameters."""
-        return self.get_config().strategy
-    
-    def get_order_params(self) -> OrderSettings:
-        """Get order execution parameters."""
-        return self.get_config().order
-    
-    def get_database_params(self) -> DatabaseSettings:
-        """Get database and logging parameters."""
-        return self.get_config().database
-    
-    def validate_config(self) -> bool:
-        """
-        Validate the current configuration.
-        
-        Returns:
-            bool: True if configuration is valid
-        
-        Raises:
-            ValidationError: If configuration is invalid
-        """
-        if not self._config:
-            raise ValueError("No configuration loaded")
-        
-        # Re-validate by creating a new instance
-        try:
-            TradingBotConfig(**self._config.dict())
-            return True
-        except ValidationError:
-            raise
-    
-    def reload(self) -> TradingBotConfig:
-        """
-        Reload configuration from file.
-        
-        Returns:
-            TradingBotConfig: Reloaded configuration object
-        """
-        return self.load_config(self._config_path)
-    
-    @property
-    def is_loaded(self) -> bool:
-        """Check if configuration is loaded."""
-        return self._config is not None
-    
-    @classmethod
-    def create_default_config(cls, config_path: Union[str, Path]) -> TradingBotConfig:
-        """
-        Create a default configuration file.
-        
-        Args:
-            config_path: Path where to save the default configuration
-        
-        Returns:
-            TradingBotConfig: Default configuration object
-        """
-        config_path = Path(config_path)
-        manager = cls()
-        manager._config = TradingBotConfig()
-        manager._config_path = config_path
-        
-        # Determine format from extension
-        format = 'yaml' if config_path.suffix in ['.yaml', '.yml'] else 'json'
-        manager.save_config(format=format)
-        
-        return manager._config
+                raise ValueError(f"Unsupported config format: {suffix}")
 
 
-# Convenience function for quick access
-def load_config(config_path: Union[str, Path]) -> TradingBotConfig:
+def load_config(config_path: Optional[Union[str, Path]] = None) -> TradingBotConfig:
     """
-    Load configuration from file.
+    Convenience function to load configuration.
     
     Args:
         config_path: Path to configuration file

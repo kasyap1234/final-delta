@@ -1,7 +1,7 @@
 ============================================================
 TRADE SUMMARY
 ============================================================
-Total Trades: 99
+Total Trades: 49
 Winning Trades: 0
 Losing Trades: 0
 Win Rate: 0.00%

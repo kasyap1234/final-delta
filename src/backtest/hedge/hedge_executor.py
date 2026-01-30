@@ -249,20 +249,27 @@ class BacktestHedgeExecutor:
         )
 
         try:
+            # Use limit orders with post_only to match live bot behavior
             order = await self.exchange_client.create_order(
                 symbol=chunk.symbol,
                 side=side,
-                order_type='market',
-                amount=chunk.size
+                order_type='limit',
+                amount=chunk.size,
+                price=chunk.target_price,
+                post_only=self.config.post_only
             )
 
             chunk.order_id = order.get('id')
+            
+            # Get fill price from order if available, otherwise use target
+            fill_price = order.get('average', order.get('price', chunk.target_price))
+            filled_amount = order.get('filled', chunk.size)
 
             return {
                 'success': True,
                 'order_id': order.get('id'),
-                'filled': chunk.size,
-                'price': chunk.target_price
+                'filled': filled_amount,
+                'price': fill_price
             }
 
         except Exception as e:

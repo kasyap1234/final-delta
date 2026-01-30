@@ -1,0 +1,456 @@
+{
+  "report_id": "71378602",
+  "generated_at": "2026-01-29T22:40:33.098179",
+  "start_time": "2026-01-29T22:40:33.098180",
+  "end_time": "2026-01-29T22:40:33.098180",
+  "symbols": [
+    "BTC/USDT",
+    "ETH/USDT"
+  ],
+  "signal_comparisons": [],
+  "order_comparisons": [],
+  "position_comparisons": [],
+  "pnl_comparisons": [
+    {
+      "timestamp": "2026-01-04T05:30:00",
+      "symbol": "BTC/USDT",
+      "trade_id": "BTC/USDT_2026-01-04T05:30:00",
+      "live_realized_pnl": 4.526272251224484,
+      "backtest_realized_pnl": 4.460284534825556,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.06598771639892842,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.06598771639892842,
+      "severity": "none",
+      "details": {
+        "live_entry": 89573.5,
+        "live_exit": null,
+        "backtest_entry": 89573.5,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T19:30:00",
+      "symbol": "BTC/USDT",
+      "trade_id": "BTC/USDT_2026-01-02T19:30:00",
+      "live_realized_pnl": -0.7883742760662157,
+      "backtest_realized_pnl": -0.795776662996177,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.007402386929961313,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.007402386929961313,
+      "severity": "none",
+      "details": {
+        "live_entry": 89520.5,
+        "live_exit": null,
+        "backtest_entry": 89520.5,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T17:15:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-02T17:15:00",
+      "live_realized_pnl": -2.3345497914906645,
+      "backtest_realized_pnl": -2.3041842568714057,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.030365534619258838,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.030365534619258838,
+      "severity": "none",
+      "details": {
+        "live_entry": 3060.35,
+        "live_exit": null,
+        "backtest_entry": 3060.35,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T20:15:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-02T20:15:00",
+      "live_realized_pnl": 0.7607741804058015,
+      "backtest_realized_pnl": 0.7546554708903697,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.006118709515431808,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.006118709515431808,
+      "severity": "none",
+      "details": {
+        "live_entry": 3054.95,
+        "live_exit": null,
+        "backtest_entry": 3054.95,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T15:15:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-02T15:15:00",
+      "live_realized_pnl": 2.535662245828247,
+      "backtest_realized_pnl": 2.5846407927332935,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.04897854690504655,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.04897854690504655,
+      "severity": "none",
+      "details": {
+        "live_entry": 3027.5,
+        "live_exit": null,
+        "backtest_entry": 3027.5,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-03T12:45:00",
+      "symbol": "BTC/USDT",
+      "trade_id": "BTC/USDT_2026-01-03T12:45:00",
+      "live_realized_pnl": -2.2082955987105732,
+      "backtest_realized_pnl": -2.25280142190669,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.04450582319611662,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.04450582319611662,
+      "severity": "none",
+      "details": {
+        "live_entry": 90304.5,
+        "live_exit": null,
+        "backtest_entry": 90304.5,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T17:00:00",
+      "symbol": "BTC/USDT",
+      "trade_id": "BTC/USDT_2026-01-02T17:00:00",
+      "live_realized_pnl": -1.5927639821103177,
+      "backtest_realized_pnl": -1.5658880633330106,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.026875918777307106,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.026875918777307106,
+      "severity": "none",
+      "details": {
+        "live_entry": 89703.0,
+        "live_exit": null,
+        "backtest_entry": 89703.0,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T22:00:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-02T22:00:00",
+      "live_realized_pnl": 4.173336334326073,
+      "backtest_realized_pnl": 4.205468690749255,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.03213235642318146,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.03213235642318146,
+      "severity": "none",
+      "details": {
+        "live_entry": 3075.45,
+        "live_exit": null,
+        "backtest_entry": 3075.45,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-05T06:30:00",
+      "symbol": "BTC/USDT",
+      "trade_id": "BTC/USDT_2026-01-05T06:30:00",
+      "live_realized_pnl": 4.762403630337002,
+      "backtest_realized_pnl": 4.781379137043755,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.018975506706753187,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.018975506706753187,
+      "severity": "none",
+      "details": {
+        "live_entry": 91209.5,
+        "live_exit": null,
+        "backtest_entry": 91209.5,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-04T05:30:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-04T05:30:00",
+      "live_realized_pnl": 5.344581383036838,
+      "backtest_realized_pnl": 5.330440556905062,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.014140826131775697,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.014140826131775697,
+      "severity": "none",
+      "details": {
+        "live_entry": 3083.15,
+        "live_exit": null,
+        "backtest_entry": 3083.15,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-02T19:45:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-02T19:45:00",
+      "live_realized_pnl": -0.4978738071602668,
+      "backtest_realized_pnl": -0.5043207190152436,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.006446911854976756,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.006446911854976756,
+      "severity": "none",
+      "details": {
+        "live_entry": 3048.05,
+        "live_exit": null,
+        "backtest_entry": 3048.05,
+        "backtest_exit": null
+      }
+    },
+    {
+      "timestamp": "2026-01-03T12:30:00",
+      "symbol": "ETH/USDT",
+      "trade_id": "ETH/USDT_2026-01-03T12:30:00",
+      "live_realized_pnl": -4.142110452257578,
+      "backtest_realized_pnl": -4.168820140128737,
+      "live_unrealized_pnl": 0.0,
+      "backtest_unrealized_pnl": 0.0,
+      "live_fees": 0.0,
+      "backtest_fees": 0.0,
+      "realized_pnl_diff": 0.02670968787115946,
+      "unrealized_pnl_diff": 0.0,
+      "fees_diff": 0.0,
+      "total_pnl_diff": 0.02670968787115946,
+      "severity": "none",
+      "details": {
+        "live_entry": 3133.75,
+        "live_exit": null,
+        "backtest_entry": 3133.75,
+        "backtest_exit": null
+      }
+    }
+  ],
+  "risk_comparisons": [],
+  "timing_comparisons": [],
+  "state_transitions": [],
+  "metrics": {
+    "signal_generation": {
+      "category": "signal_generation",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "order_execution": {
+      "category": "order_execution",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "position_management": {
+      "category": "position_management",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "pnl_calculation": {
+      "category": "pnl_calculation",
+      "total_comparisons": 12,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "risk_management": {
+      "category": "risk_management",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "timing": {
+      "category": "timing",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    },
+    "state_transition": {
+      "category": "state_transition",
+      "total_comparisons": 0,
+      "divergences": 0,
+      "minor_divergences": 0,
+      "moderate_divergences": 0,
+      "critical_divergences": 0,
+      "max_divergence_value": 0.0,
+      "avg_divergence_value": 0.0,
+      "divergence_rate": 0.0
+    }
+  },
+  "overall_severity": "none",
+  "passed_validation": true,
+  "summary": {
+    "report_id": "71378602",
+    "generated_at": "2026-01-29T22:40:33.098179",
+    "test_period": {
+      "start": "2026-01-29T22:40:33.098180",
+      "end": "2026-01-29T22:40:33.098180"
+    },
+    "symbols": [
+      "BTC/USDT",
+      "ETH/USDT"
+    ],
+    "total_comparisons": 12,
+    "total_divergences": 0,
+    "divergence_rate": 0.0,
+    "overall_severity": "none",
+    "passed_validation": true,
+    "category_metrics": {
+      "signal_generation": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "order_execution": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "position_management": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "pnl_calculation": {
+        "total_comparisons": 12,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "risk_management": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "timing": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      },
+      "state_transition": {
+        "total_comparisons": 0,
+        "divergences": 0,
+        "divergence_rate": 0.0,
+        "minor": 0,
+        "moderate": 0,
+        "critical": 0,
+        "max_divergence": 0.0,
+        "avg_divergence": 0.0
+      }
+    },
+    "critical_issues": [],
+    "recommendations": [
+      "No significant divergences found. Backtest fidelity is good."
+    ]
+  }
+}
