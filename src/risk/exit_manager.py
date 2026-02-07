@@ -63,20 +63,20 @@ class AllWeatherExitManager:
         self.position_entry_prices: Dict[str, float] = {}
         self.position_sides: Dict[str, str] = {}
 
-        # Time limits by regime (hours)
+        # Time limits by regime (hours) - extended for letting winners run
         self.time_limits = {
-            "trending_up": 48,
-            "trending_down": 48,
-            "ranging": 12,
-            "volatile": 6,
+            "trending_up": 72,
+            "trending_down": 72,
+            "ranging": 18,
+            "volatile": 12,
             "quiet": 24,
             "unknown": 24,
         }
 
-        # Trailing stop configuration
-        self.trailing_atr_multiplier = self.config.get("trailing_atr_multiplier", 2.0)
+        # Trailing stop configuration - widened for letting winners run
+        self.trailing_atr_multiplier = self.config.get("trailing_atr_multiplier", 3.0)
         self.profit_retracement_threshold = self.config.get(
-            "profit_retracement_threshold", 0.5
+            "profit_retracement_threshold", 0.65
         )
 
         logger.info("AllWeatherExitManager initialized")
@@ -377,51 +377,11 @@ class AllWeatherExitManager:
         current_price: float,
         take_profit_price: Optional[float],
     ) -> Optional[ExitSignal]:
-        """Check if we should scale out to protect profits."""
-        if not take_profit_price:
-            return None
+        """Check if we should scale out to protect profits.
 
-        entry_price = self.position_entry_prices.get(position_id)
-        if not entry_price:
-            return None
-
-        # Calculate progress toward target
-        if side == "long":
-            total_distance = take_profit_price - entry_price
-            current_distance = current_price - entry_price
-        else:
-            total_distance = entry_price - take_profit_price
-            current_distance = entry_price - current_price
-
-        if total_distance <= 0:
-            return None
-
-        progress = current_distance / total_distance
-
-        # Scale out at 50% and 75% of target
-        if progress > 0.75:
-            return ExitSignal(
-                symbol=symbol,
-                position_id=position_id,
-                exit_type=ExitType.PROFIT_PROTECTION,
-                reason="75% target reached - scale out",
-                priority=5,
-                timestamp=datetime.now(),
-                price=current_price,
-                scale_percent=50,  # Close 50% of position
-            )
-        elif progress > 0.50:
-            return ExitSignal(
-                symbol=symbol,
-                position_id=position_id,
-                exit_type=ExitType.PROFIT_PROTECTION,
-                reason="50% target reached - scale out",
-                priority=5,
-                timestamp=datetime.now(),
-                price=current_price,
-                scale_percent=25,  # Close 25% of position
-            )
-
+        DISABLED: Let winners run to full take-profit or trailing stop.
+        Premature scaling was cutting 75% of position before target.
+        """
         return None
 
     def close_position(self, position_id: str):

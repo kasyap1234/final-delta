@@ -83,7 +83,7 @@ class StrategyConfig:
     pivot_lookback: int = 10
 
     # Risk parameters
-    max_position_size_percent: float = 5.0
+    max_position_size_percent: float = 20.0
     max_risk_per_trade_percent: float = 2.0
     stop_loss_atr_multiplier: float = 2.0
     take_profit_rr_ratio: float = 2.0
@@ -92,12 +92,14 @@ class StrategyConfig:
     rsi_oversold: float = 30.0
     resistance_threshold: float = 0.005
     strong_signal_threshold: float = 0.80
-    weak_signal_threshold: float = 0.45
+    weak_signal_threshold: float = 0.35
     crossover_lookback: int = 3
-    min_signal_confidence: float = 0.50
-    min_adx_for_entry: float = 18.0
-    min_ema_spread_for_entry: float = 0.006
-    min_regime_confidence: float = 0.60
+    min_signal_confidence: float = 0.30
+    min_adx_for_entry: float = 14.0
+    min_ema_spread_for_entry: float = 0.003
+    min_regime_confidence: float = 0.35
+    max_atr_percent_for_entry: float = 0.05
+    atr_percent_lookback: int = 3
 
     # Enhanced strategy settings
     use_enhanced_strategy: bool = True  # Enable new regime-based strategy
@@ -216,6 +218,9 @@ class BacktestStrategyEngine:
         # Track performance for Kelly criterion
         self.trade_history: List[Dict[str, Any]] = []
 
+        # Cache regime metrics from signal generation to avoid double-counting
+        self._last_regime_metrics: Dict[str, Any] = {}
+
         # Initialize exit manager for all-weather exits
         self.exit_manager = AllWeatherExitManager()
 
@@ -247,9 +252,9 @@ class BacktestStrategyEngine:
 
         self.price_history[symbol].append(ohlcv_candle)
 
-        # Keep only last 500 candles for efficiency
+        # Keep only last 500 candles — pop from front to keep same list object
         if len(self.price_history[symbol]) > 500:
-            self.price_history[symbol] = self.price_history[symbol][-500:]
+            del self.price_history[symbol][:len(self.price_history[symbol]) - 500]
 
         # Update IndicatorManager
         self.indicator_manager.update_ohlcv(symbol, self.price_history[symbol])
@@ -276,6 +281,28 @@ class BacktestStrategyEngine:
 
         return indicators
 
+    def _calculate_atr_percent(self, symbol: str, indicators: IndicatorValues) -> Optional[float]:
+        """Calculate ATR as a percent of price using recent candle data."""
+        if indicators.atr is None:
+            return None
+
+        price_arrays = self.indicator_manager.get_price_arrays(symbol)
+        if not price_arrays:
+            return None
+
+        closes = price_arrays.get("closes")
+        if closes is not None and len(closes) >= self.config.atr_percent_lookback:
+            window = closes[-self.config.atr_percent_lookback :]
+            avg_price = float(np.mean(window))
+            if avg_price > 0:
+                return float(indicators.atr / avg_price)
+
+        reference_price = indicators.ema_50 or indicators.ema_9
+        if reference_price and reference_price > 0:
+            return float(indicators.atr / reference_price)
+
+        return None
+
     def generate_signal(
         self, symbol: str, indicators: IndicatorValues
     ) -> Optional[StrategySignal]:
@@ -289,7 +316,11 @@ class BacktestStrategyEngine:
         Returns:
             StrategySignal object or None
         """
-        current_price = indicators.ema_9  # Use any available price
+        # Use last close price (matching live bot's use of actual market price)
+        if symbol in self.price_history and self.price_history[symbol]:
+            current_price = self.price_history[symbol][-1][4]  # close price from OHLCV
+        else:
+            current_price = indicators.ema_9
         if current_price is None:
             return None
 
@@ -321,20 +352,23 @@ class BacktestStrategyEngine:
                 )
                 return None
 
+        self._last_regime_metrics[symbol] = regime_metrics
+
         signal = self.signal_detector.check_entry_signal(
             symbol=symbol,
             indicators=indicators,
             current_price=current_price,
             price_history=price_history,
+            regime_metrics=regime_metrics,
         )
 
-        if signal.strength < self.config.min_signal_confidence:
-            return None
+        # Apply regime confidence as a scaler to signal strength
+        adjusted_strength = signal.strength
+        if regime_metrics:
+            regime_conf_scale = min(1.0, max(0.5, regime_metrics.confidence / 0.60))
+            adjusted_strength *= regime_conf_scale
 
-        if (
-            regime_metrics
-            and regime_metrics.confidence < self.config.min_regime_confidence
-        ):
+        if adjusted_strength < self.config.min_signal_confidence:
             return None
 
         long_signals = (
@@ -348,6 +382,24 @@ class BacktestStrategyEngine:
             SignalType.MEAN_REVERSION_SHORT,
         )
 
+        # Determine direction and check regime suitability
+        if signal.signal in long_signals:
+            direction = "long"
+        elif signal.signal in short_signals:
+            direction = "short"
+        else:
+            if symbol in self.active_signals:
+                del self.active_signals[symbol]
+            return None
+
+        if regime_metrics and self.regime_detector:
+            suitability = self.regime_detector.get_regime_suitability(regime_metrics.regime, direction)
+            if suitability < 0.3:
+                logger.debug(f"Trade direction {direction} not suitable for regime {regime_metrics.regime.value}")
+                return None
+            # Scale confidence by suitability
+            adjusted_strength *= suitability
+
         if signal.signal in long_signals:
             # Check if we already have an active long signal
             if (
@@ -359,7 +411,7 @@ class BacktestStrategyEngine:
                     direction=TradeDirection.LONG,
                     timestamp=datetime.now(),
                     price=current_price,
-                    confidence=signal.strength,
+                    confidence=adjusted_strength,
                     metadata={
                         "signal_type": signal.signal.value,
                         "reason": signal.reason,
@@ -394,7 +446,7 @@ class BacktestStrategyEngine:
                     direction=TradeDirection.SHORT,
                     timestamp=datetime.now(),
                     price=current_price,
-                    confidence=signal.strength,
+                    confidence=adjusted_strength,
                     metadata={
                         "signal_type": signal.signal.value,
                         "reason": signal.reason,
@@ -443,7 +495,11 @@ class BacktestStrategyEngine:
         Returns:
             ExitSignal object or None
         """
-        current_price = indicators.ema_9
+        # Use last close price (matching live bot's use of actual market price)
+        if symbol in self.price_history and self.price_history[symbol]:
+            current_price = self.price_history[symbol][-1][4]  # close price from OHLCV
+        else:
+            current_price = indicators.ema_9
         if current_price is None:
             return None
 
@@ -559,9 +615,9 @@ class BacktestStrategyEngine:
         Returns:
             Dictionary with position sizing information
         """
-        # Get indicators for stop loss calculation
-        indicators = self.calculate_indicators(symbol)
-        if not indicators:
+        # Reuse cached indicators (already calculated in process_candle)
+        indicators = self.indicator_manager.get_latest(symbol)
+        if not indicators or not indicators.ema_200:
             return {"size": 0, "stop_loss": 0, "take_profit": 0}
 
         # Use SignalDetector's methods for stop loss and take profit
@@ -587,19 +643,26 @@ class BacktestStrategyEngine:
             risk_reward_ratio=adaptive_rr,
         )
 
-        # Get regime metrics for all-weather sizing
-        regime_metrics = None
-        if self.use_enhanced_strategy and self.regime_detector:
-            price_arrays = self.indicator_manager.get_price_arrays(symbol)
-            price_history = price_arrays.get("closes") if price_arrays else None
-            if price_history is not None and len(price_history) > 0:
-                regime_metrics = self.regime_detector.detect_regime(
-                    prices=price_history,
-                    ema_fast=indicators.ema_9,
-                    ema_slow=indicators.ema_50,
-                    adx=indicators.adx,
-                    atr=indicators.atr,
-                )
+        # Reuse regime metrics from signal generation (avoid double-counting stateful detector)
+        regime_metrics = self._last_regime_metrics.get(symbol)
+
+        # Regime-based risk adjustment
+        regime_risk_mult = 1.0
+        if regime_metrics:
+            regime_val = regime_metrics.regime.value if hasattr(regime_metrics.regime, 'value') else str(regime_metrics.regime)
+            risk_multipliers = {
+                'trending_up': 1.5,
+                'trending_down': 1.5,
+                'ranging': 0.8,
+                'volatile': 0.5,
+                'quiet': 0.7,
+                'unknown': 0.5,
+            }
+            regime_risk_mult = risk_multipliers.get(regime_val, 1.0)
+            # Scale by confidence
+            regime_risk_mult = 1.0 + (regime_risk_mult - 1.0) * min(1.0, regime_metrics.confidence / 0.7)
+
+        adjusted_risk = self.config.max_risk_per_trade_percent * regime_risk_mult
 
         # Calculate recent performance metrics
         recent_performance = self._calculate_recent_performance()
@@ -610,7 +673,7 @@ class BacktestStrategyEngine:
         # Use all-weather position sizing
         position_result = self.position_sizer.calculate_all_weather_position_size(
             account_balance=self.account_balance,
-            risk_percent=self.config.max_risk_per_trade_percent,
+            risk_percent=adjusted_risk,
             entry_price=current_price,
             stop_loss_price=stop_loss,
             symbol=symbol,
@@ -694,8 +757,16 @@ class BacktestStrategyEngine:
         if not indicators:
             return None
 
-        # Regime filter: avoid choppy periods
-        if not self._passes_regime_filter(indicators):
+        # Soft regime scaling (replaces hard regime gate)
+        regime_multiplier = self._calculate_regime_multiplier(indicators)
+
+        # ATR percent filter: prevent trading during extreme volatility
+        atr_percent = self._calculate_atr_percent(symbol, indicators)
+        if atr_percent is not None and atr_percent > self.config.max_atr_percent_for_entry:
+            logger.debug(
+                f"Skipping entry for {symbol}: ATR% {atr_percent:.3f} exceeds "
+                f"limit {self.config.max_atr_percent_for_entry:.3f}"
+            )
             return None
 
         # Generate entry signal using SignalDetector
@@ -703,33 +774,40 @@ class BacktestStrategyEngine:
         if not signal:
             return None
 
-        # Calculate position size
+        # Calculate position size with regime-adjusted risk
         position_info = self.calculate_position_size(symbol, signal, candle["close"])
 
         if position_info["size"] <= 0:
             return None
 
+        # Apply regime multiplier to final position size
+        adjusted_size = position_info["size"] * regime_multiplier
+
         return {
             "signal": signal,
-            "position_size": position_info["size"],
+            "position_size": adjusted_size,
             "entry_price": candle["close"],
             "stop_loss": position_info["stop_loss"],
             "take_profit": position_info["take_profit"],
             "atr": position_info["atr"],
         }
 
-    def _passes_regime_filter(self, indicators: IndicatorValues) -> bool:
-        """Filter out low-trend conditions using ADX and EMA spread."""
-        adx_ok = True
-        if indicators.adx is not None:
-            adx_ok = indicators.adx >= self.config.min_adx_for_entry
+    def _calculate_regime_multiplier(self, indicators: IndicatorValues) -> float:
+        """Calculate a soft regime quality multiplier (0.3 to 1.0) instead of hard gate."""
+        multiplier = 1.0
 
-        ema_spread_ok = True
+        # ADX contribution: scale from 0.5 at ADX=0 to 1.0 at ADX >= min_adx
+        if indicators.adx is not None:
+            adx_scale = min(1.0, max(0.5, indicators.adx / max(self.config.min_adx_for_entry, 1.0)))
+            multiplier *= adx_scale
+
+        # EMA spread contribution: scale from 0.6 at 0 spread to 1.0 at min_spread
         if indicators.ema_9 and indicators.ema_50 and indicators.ema_50 > 0:
             ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
-            ema_spread_ok = ema_spread >= self.config.min_ema_spread_for_entry
+            spread_scale = min(1.0, max(0.6, ema_spread / max(self.config.min_ema_spread_for_entry, 0.001)))
+            multiplier *= spread_scale
 
-        return adx_ok and ema_spread_ok
+        return max(0.3, multiplier)
 
     def check_position_exit(
         self,

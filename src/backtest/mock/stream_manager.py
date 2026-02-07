@@ -7,7 +7,7 @@ instead of WebSocket streams.
 
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Set, AsyncGenerator
+from typing import Any, Dict, List, Optional, Set, AsyncGenerator, Tuple
 import logging
 
 from src.data.data_cache import OHLCV, PriceData
@@ -42,7 +42,18 @@ class BacktestStreamManager:
         self.current_time: Optional[datetime] = None
         self.subscribed_symbols: Set[str] = set()
         self._running = False
-        
+
+        self._timestamp_index: Dict[str, Dict[Any, OHLCV]] = {}
+        self._timeframe_index: Dict[str, Dict[Tuple[Any, str], OHLCV]] = {}
+        for symbol, candles in historical_data.items():
+            ts_map: Dict[Any, OHLCV] = {}
+            tf_map: Dict[Tuple[Any, str], OHLCV] = {}
+            for c in candles:
+                ts_map[c.timestamp] = c
+                tf_map[(c.timestamp, c.timeframe)] = c
+            self._timestamp_index[symbol] = ts_map
+            self._timeframe_index[symbol] = tf_map
+
         logger.info("BacktestStreamManager initialized")
     
     async def start(self) -> None:
@@ -89,18 +100,12 @@ class BacktestStreamManager:
         self.current_time = current_time
         self.data_cache.set_current_time(current_time)
         
-        # Push new candle data to cache for subscribed symbols
         for symbol in self.subscribed_symbols:
-            data = self.historical_data.get(symbol, [])
-            
-            # Find the candle for current_time
-            candle = next(
-                (c for c in data if c.timestamp == current_time),
-                None
-            )
-            
+            ts_map = self._timestamp_index.get(symbol)
+            if ts_map is None:
+                continue
+            candle = ts_map.get(current_time)
             if candle:
-                # Push to cache (simulating WebSocket update)
                 await self.data_cache.update_ohlcv(symbol, candle)
     
     async def watch_ohlcv(
@@ -122,16 +127,13 @@ class BacktestStreamManager:
         """
         while self._running:
             if self.current_time:
-                data = self.historical_data.get(symbol, [])
-                candle = next(
-                    (c for c in data 
-                     if c.timestamp == self.current_time and c.timeframe == timeframe),
-                    None
-                )
-                if candle:
-                    yield candle
-            
-            await asyncio.sleep(0)  # Yield control
+                tf_map = self._timeframe_index.get(symbol)
+                if tf_map is not None:
+                    candle = tf_map.get((self.current_time, timeframe))
+                    if candle:
+                        yield candle
+
+            await asyncio.sleep(0)
     
     async def watch_ticker(self, symbol: str) -> AsyncGenerator[PriceData, None]:
         """

@@ -64,6 +64,10 @@ strategy:
   # ATR (Average True Range) settings for stop-loss calculation
   atr_period: 14
   atr_multiplier: 2.0         # Multiplier for ATR-based stop-loss
+
+  # Volatility filter to avoid extreme regime entries
+  # 0.045 means skip entries when ATR exceeds 4.5% of price
+  max_atr_percent_for_entry: 0.045
   
   # Pivot/Resistance detection settings
   pivot_lookback: 10          # Lookback period for pivot detection
@@ -75,19 +79,23 @@ risk_management:
   # Total trading capital
   # Used for position sizing calculations
   account_balance: 10000.0
-  
+
   # Risk per trade as percentage of account balance
   # Recommended range: 1.0% - 2.0%
   # This means you risk losing this percentage if stop-loss is hit
   risk_per_trade_percent: 1.0
-  
+
   # Maximum allowed risk per trade percentage
   # Hard limit that cannot be exceeded
   max_risk_per_trade_percent: 2.0
-  
+
   # Risk:Reward ratio for take profit calculation
   # 2.0 means 2:1 risk:reward (take profit is 2x the stop-loss distance)
   take_profit_r_ratio: 2.0
+
+  # Maximum leverage allowed
+  # 5.0 means up to 5x leverage can be used
+  max_leverage: 5.0
 
 # =============================================================================
 # HEDGE CONFIGURATION

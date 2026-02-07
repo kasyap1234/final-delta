@@ -1,0 +1,53 @@
+{
+  "2023": {
+    "year": "2023",
+    "description": "Bear Market Recovery",
+    "total_trades": 23,
+    "winning_trades": 12,
+    "losing_trades": 11,
+    "win_rate": 52.17391304347826,
+    "total_pnl": 1140.610256080688,
+    "gross_profit": 1920.6877054034067,
+    "gross_loss": -780.0774493227185,
+    "profit_factor": 2.462175655854419,
+    "return_pct": 11.40610256080688,
+    "sharpe_ratio": 1.3516341819728819,
+    "max_drawdown": 0.06100581649200975,
+    "final_equity": 11095.00597643763,
+    "duration_minutes": 0.0008420000000000001
+  },
+  "2024": {
+    "year": "2024",
+    "description": "Bull Market",
+    "total_trades": 84,
+    "winning_trades": 30,
+    "losing_trades": 54,
+    "win_rate": 35.714285714285715,
+    "total_pnl": -366.44319525448617,
+    "gross_profit": 4472.286579283316,
+    "gross_loss": -4838.729774537803,
+    "profit_factor": 0.9242687208567069,
+    "return_pct": -3.6644319525448616,
+    "sharpe_ratio": -0.2187381607821157,
+    "max_drawdown": 0.11930063525987658,
+    "final_equity": 9500.236412201064,
+    "duration_minutes": 0.0008162833333333334
+  },
+  "2025": {
+    "year": "2025",
+    "description": "Volatile/Mixed",
+    "total_trades": 95,
+    "winning_trades": 38,
+    "losing_trades": 57,
+    "win_rate": 40.0,
+    "total_pnl": 806.9828980219803,
+    "gross_profit": 5296.995533394455,
+    "gross_loss": -4490.0126353724745,
+    "profit_factor": 1.1797284247408442,
+    "return_pct": 8.069828980219803,
+    "sharpe_ratio": 0.5325343405473806,
+    "max_drawdown": 0.07982574765929082,
+    "final_equity": 10653.004446014837,
+    "duration_minutes": 0.00080915
+  }
+}

@@ -76,6 +76,7 @@ class PositionSizer:
                    - min_position_size: Minimum position size (default: 0.001)
                    - max_position_size: Maximum position size (default: 100.0)
                    - trading_fee_percent: Trading fee percentage (default: 0.1)
+                   - max_leverage: Maximum leverage allowed (default: 5.0)
         """
         self.config = config or {}
         self.default_risk_percent = self.config.get("default_risk_percent", 1.0)
@@ -86,6 +87,7 @@ class PositionSizer:
         self.min_position_size = self.config.get("min_position_size", 0.001)
         self.max_position_size = self.config.get("max_position_size", 100.0)
         self.trading_fee_percent = self.config.get("trading_fee_percent", 0.1)
+        self.max_leverage = self.config.get("max_leverage", 5.0)
 
         # Symbol-specific limits (can be overridden via config)
         self.symbol_limits: Dict[str, Dict[str, float]] = {}
@@ -589,32 +591,34 @@ class PositionSizer:
 
         position_size = base_result.position_size
 
+        # Factor 1: Signal strength (0.3 to 1.0)
         signal_factor = 0.3 + (signal_strength * 0.7)
 
-        # Factor 2 & 3: Regime confidence and modifier
-        regime_factor = 1.0
-        regime_modifier = 1.0
+        # Factor 2: Regime-based leverage
+        leverage = 1.0
         if regime_metrics is not None:
-            # Regime confidence (0.5 to 1.0)
-            regime_confidence = getattr(regime_metrics, "confidence", 0.5)
-            regime_factor = 0.5 + (regime_confidence * 0.5)
-
-            # Regime position modifier
             current_regime = getattr(regime_metrics, "regime", None)
             if current_regime is not None:
-                regime_modifier = self._get_regime_position_modifier(current_regime)
+                leverage = self._get_regime_leverage(current_regime)
 
-        # Factor 4: Recent performance decay (0.5 to 1.0)
+        # Scale leverage by regime confidence
+        if regime_metrics is not None:
+            confidence = getattr(regime_metrics, "confidence", 0.5)
+            # Scale leverage: at confidence 0.5 use 60% of leverage, at 1.0 use full
+            conf_scale = 0.6 + (confidence * 0.4)
+            leverage *= conf_scale
+
+        # Factor 3: Recent performance (0.85 to 1.0)
         performance_factor = 1.0
         if recent_performance is not None:
             recent_win_rate = recent_performance.get("win_rate", 0.5)
-            # Scale from 0.5 (poor performance) to 1.0 (excellent)
-            performance_factor = 0.5 + (recent_win_rate * 0.5)
+            # Simplified: Scale from 0.85 to 1.0
+            performance_factor = 0.85 + (recent_win_rate * 0.15)
 
-        # Factor 5: Drawdown protection (continuous scaling)
+        # Factor 4: Drawdown protection (continuous scaling)
         drawdown_factor = self._calculate_drawdown_factor(current_drawdown)
 
-        # Factor 6: Kelly criterion (if we have performance data)
+        # Factor 5: Kelly criterion (if we have performance data)
         kelly_factor = 1.0
         if win_rate is not None and avg_win is not None and avg_loss is not None:
             kelly_pct = self.calculate_kelly_criterion(
@@ -625,14 +629,13 @@ class PositionSizer:
             if base_risk_decimal > 0:
                 kelly_factor = min(1.0, max(0.25, kelly_pct / base_risk_decimal))
 
-        # Calculate combined multiplier
+        # Calculate combined multiplier (leverage applied last)
         total_multiplier = (
             signal_factor
-            * regime_factor
-            * regime_modifier
             * performance_factor
             * drawdown_factor
             * kelly_factor
+            * leverage
         )
 
         # Apply multiplier to position size
@@ -643,8 +646,7 @@ class PositionSizer:
             f"All-weather sizing for {symbol}: "
             f"base={position_size:.4f}, "
             f"signal={signal_factor:.2f}, "
-            f"regime_conf={regime_factor:.2f}, "
-            f"regime_mod={regime_modifier:.2f}, "
+            f"leverage={leverage:.2f}, "
             f"performance={performance_factor:.2f}, "
             f"drawdown={drawdown_factor:.2f}, "
             f"kelly={kelly_factor:.2f}, "
@@ -666,33 +668,33 @@ class PositionSizer:
             else None,
         )
 
-    def _get_regime_position_modifier(self, regime: Any) -> float:
-        """Get position size modifier for a specific regime."""
+    def _get_regime_leverage(self, regime: Any) -> float:
+        """Get leverage multiplier for a specific regime."""
         # Handle both enum and string regimes
         regime_value = regime.value if hasattr(regime, "value") else str(regime)
 
-        modifiers = {
-            "trending_up": 1.0,
-            "trending_down": 1.0,
-            "ranging": 0.4,
-            "volatile": 0.3,
-            "quiet": 0.6,
-            "unknown": 0.0,
+        leverage_map = {
+            "trending_up": 3.0,
+            "trending_down": 3.0,
+            "ranging": 2.0,
+            "volatile": 1.0,
+            "quiet": 1.5,
+            "unknown": 1.0,
         }
 
-        return modifiers.get(regime_value, 0.5)
+        return min(leverage_map.get(regime_value, 1.0), self.max_leverage)
 
     def _calculate_drawdown_factor(self, current_drawdown: float) -> float:
         """Calculate position size factor based on current drawdown."""
-        if current_drawdown > 0.15:  # 15% drawdown
+        if current_drawdown > 0.35:  # 35% drawdown
             return 0.0  # Stop trading
-        elif current_drawdown > 0.10:  # 10% drawdown
-            return 0.25  # Reduce to 25%
-        elif current_drawdown > 0.07:  # 7% drawdown
-            return 0.50  # Reduce to 50%
-        elif current_drawdown > 0.05:  # 5% drawdown
-            return 0.75  # Reduce to 75%
-        return 1.0  # Full size
+        elif current_drawdown > 0.25:  # 25% drawdown
+            return 0.25
+        elif current_drawdown > 0.20:  # 20% drawdown
+            return 0.50
+        elif current_drawdown > 0.15:  # 15% drawdown
+            return 0.75
+        return 1.0
 
     def calculate_adaptive_position_size(
         self,

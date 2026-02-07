@@ -5,13 +5,13 @@ This module provides functionality to load historical OHLCV data
 from various sources (CSV, SQLite, API).
 """
 
-import csv
 import sqlite3
 from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging
+
+import polars as pl
 
 from src.data.data_cache import OHLCV
 from src.backtest.config import BacktestConfig
@@ -131,50 +131,55 @@ class HistoricalDataLoader:
         Returns:
             List of OHLCV objects
         """
-        candles = []
-        
-        with open(filepath, 'r') as f:
-            reader = csv.DictReader(f)
-            
-            for row in reader:
-                try:
-                    # Parse timestamp
-                    timestamp_str = row.get('timestamp', '')
-                    # Check if timestamp already has time component (contains 'T')
-                    if 'T' in timestamp_str:
-                        timestamp = datetime.fromisoformat(timestamp_str)
-                    else:
-                        # Add time component if only date is provided
-                        timestamp = datetime.fromisoformat(timestamp_str + 'T00:00:00')
-                    
-                    # Parse OHLCV values
-                    open_price = Decimal(row['open'])
-                    high_price = Decimal(row['high'])
-                    low_price = Decimal(row['low'])
-                    close_price = Decimal(row['close'])
-                    volume = Decimal(row['volume'])
-                    
-                    # Create OHLCV object
-                    candle = OHLCV(
-                        symbol=symbol,
-                        timeframe=self.config.timeframe,
-                        timestamp=timestamp,
-                        open=open_price,
-                        high=high_price,
-                        low=low_price,
-                        close=close_price,
-                        volume=volume
-                    )
-                    
-                    candles.append(candle)
-                    
-                except (KeyError, ValueError) as e:
-                    logger.warning(f"Skipping invalid row in {filepath}: {e}")
-                    continue
-        
-        # Sort by timestamp
-        candles.sort(key=lambda c: c.timestamp)
-        
+        timeframe = self.config.timeframe
+
+        try:
+            df = pl.read_csv(
+                filepath,
+                schema_overrides={
+                    "open": pl.Float64,
+                    "high": pl.Float64,
+                    "low": pl.Float64,
+                    "close": pl.Float64,
+                    "volume": pl.Float64,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"Failed to read CSV {filepath} with polars: {e}")
+            return []
+
+        df = df.with_columns(
+            pl.col("timestamp").str.strptime(pl.Datetime, "%Y-%m-%dT%H:%M:%S", strict=False)
+        )
+
+        null_count = df["timestamp"].null_count()
+        if null_count > 0:
+            logger.warning(f"Skipping {null_count} rows with invalid timestamps in {filepath}")
+            df = df.filter(pl.col("timestamp").is_not_null())
+
+        df = df.sort("timestamp")
+
+        timestamps = df["timestamp"].to_list()
+        opens = df["open"].to_list()
+        highs = df["high"].to_list()
+        lows = df["low"].to_list()
+        closes = df["close"].to_list()
+        volumes = df["volume"].to_list()
+
+        candles = [
+            OHLCV(
+                symbol=symbol,
+                timeframe=timeframe,
+                timestamp=ts,
+                open=o,
+                high=h,
+                low=l,
+                close=c,
+                volume=v,
+            )
+            for ts, o, h, l, c, v in zip(timestamps, opens, highs, lows, closes, volumes)
+        ]
+
         return candles
     
     def _load_from_sqlite(self) -> Dict[str, List[OHLCV]]:
@@ -219,16 +224,17 @@ class HistoricalDataLoader:
                 rows = cursor.fetchall()
                 
                 candles = []
+                timeframe = self.config.timeframe
                 for row in rows:
                     candle = OHLCV(
                         symbol=symbol,
-                        timeframe=self.config.timeframe,
+                        timeframe=timeframe,
                         timestamp=datetime.fromisoformat(row[0]),
-                        open=Decimal(str(row[1])),
-                        high=Decimal(str(row[2])),
-                        low=Decimal(str(row[3])),
-                        close=Decimal(str(row[4])),
-                        volume=Decimal(str(row[5]))
+                        open=float(row[1]),
+                        high=float(row[2]),
+                        low=float(row[3]),
+                        close=float(row[4]),
+                        volume=float(row[5])
                     )
                     candles.append(candle)
                 
@@ -301,11 +307,10 @@ class HistoricalDataLoader:
                 )
             
             # Check for gaps in data
+            expected_diff = self._get_expected_time_diff()
             for i in range(1, len(candles)):
                 time_diff = candles[i].timestamp - candles[i-1].timestamp
-                expected_diff = self._get_expected_time_diff()
                 
-                # Convert timedelta to seconds for comparison
                 time_diff_seconds = time_diff.total_seconds()
                 
                 if time_diff_seconds > expected_diff * 2:

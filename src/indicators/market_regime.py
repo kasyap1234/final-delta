@@ -442,10 +442,10 @@ class AdaptiveMarketRegimeDetector:
         regime_settings = {
             MarketRegime.TRENDING_UP: (True, 1.0),
             MarketRegime.TRENDING_DOWN: (True, 1.0),
-            MarketRegime.RANGING: (True, 0.35),
-            MarketRegime.VOLATILE: (False, 0.0),
+            MarketRegime.RANGING: (True, 0.7),
+            MarketRegime.VOLATILE: (True, 0.5),
             MarketRegime.QUIET: (True, 0.6),
-            MarketRegime.UNKNOWN: (False, 0.0),
+            MarketRegime.UNKNOWN: (True, 0.3),
         }
 
         return regime_settings.get(regime, (False, 0.0))
@@ -508,8 +508,8 @@ class AdaptiveMarketRegimeDetector:
             MarketRegime.RANGING: {
                 "atr_multiplier": 1.5,
                 "risk_reward_ratio": 1.5,
-                "signal_threshold": 0.72,
-                "position_size_modifier": 0.35,
+                "signal_threshold": 0.50,
+                "position_size_modifier": 0.7,
                 "trend_weight": 0.2,
                 "mean_reversion_weight": 0.8,
             },
@@ -517,7 +517,7 @@ class AdaptiveMarketRegimeDetector:
                 "atr_multiplier": 3.0,
                 "risk_reward_ratio": 2.0,
                 "signal_threshold": 0.80,
-                "position_size_modifier": 0.0,
+                "position_size_modifier": 0.5,
                 "trend_weight": 0.5,
                 "mean_reversion_weight": 0.5,
             },

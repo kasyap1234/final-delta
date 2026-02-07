@@ -231,8 +231,9 @@ class SignalDetector:
         if rsi <= self.rsi_oversold:
             # Oversold - potential buy signal
             divergence = None
-            if price_history is not None:
-                rsi_history = np.array([indicators.rsi])  # Simplified
+            if price_history is not None and len(price_history) >= 28:
+                from .technical_indicators import calculate_rsi
+                rsi_history = calculate_rsi(price_history, period=14)
                 divergence = detect_rsi_divergence(price_history, rsi_history)
             
             if divergence == 'bullish':
@@ -243,8 +244,9 @@ class SignalDetector:
         elif rsi >= self.rsi_overbought:
             # Overbought - potential sell signal
             divergence = None
-            if price_history is not None:
-                rsi_history = np.array([indicators.rsi])  # Simplified
+            if price_history is not None and len(price_history) >= 28:
+                from .technical_indicators import calculate_rsi
+                rsi_history = calculate_rsi(price_history, period=14)
                 divergence = detect_rsi_divergence(price_history, rsi_history)
             
             if divergence == 'bearish':
@@ -466,7 +468,7 @@ class SignalDetector:
     ) -> Signal:
         """
         Check for exit signals for an existing position.
-        Exits immediately on trend reversal, RSI extremes, or crossover.
+        Only exits on strong confirmations to avoid cutting winners short.
         
         Args:
             symbol: Trading pair symbol
@@ -486,8 +488,8 @@ class SignalDetector:
         }
         
         if position_type == 'long':
-            # Exit immediately on any exit signal for long positions
-            if indicators.trend == 'downtrend':
+            # Exit on confirmed trend reversal (strong downtrend)
+            if indicators.trend == 'downtrend' and indicators.adx is not None and indicators.adx > 25:
                 return Signal(
                     signal=SignalType.SELL,
                     reason="Trend reversal to downtrend",
@@ -497,20 +499,22 @@ class SignalDetector:
                     details=details
                 )
             
-            if indicators.rsi and indicators.rsi >= self.rsi_overbought:
+            # Exit on RSI extreme overbought only
+            if indicators.rsi and indicators.rsi >= self.rsi_overbought + 5:
                 return Signal(
                     signal=SignalType.SELL,
-                    reason=f"RSI overbought ({indicators.rsi:.1f})",
+                    reason=f"RSI extremely overbought ({indicators.rsi:.1f})",
                     strength=0.7,
                     symbol=symbol,
                     price=current_price,
                     details=details
                 )
             
-            if indicators.last_crossover == CrossoverType.BEARISH:
+            # Exit on bearish crossover with trend confirmation
+            if indicators.last_crossover == CrossoverType.BEARISH and indicators.trend == 'downtrend':
                 return Signal(
                     signal=SignalType.SELL,
-                    reason="Bearish EMA crossover",
+                    reason="Bearish EMA crossover in downtrend",
                     strength=0.6,
                     symbol=symbol,
                     price=current_price,
@@ -518,8 +522,8 @@ class SignalDetector:
                 )
         
         else:  # short position
-            # Exit immediately on any exit signal for short positions
-            if indicators.trend == 'uptrend':
+            # Exit on confirmed trend reversal (strong uptrend)
+            if indicators.trend == 'uptrend' and indicators.adx is not None and indicators.adx > 25:
                 return Signal(
                     signal=SignalType.BUY,
                     reason="Trend reversal to uptrend",
@@ -529,20 +533,22 @@ class SignalDetector:
                     details=details
                 )
             
-            if indicators.rsi and indicators.rsi <= self.rsi_oversold:
+            # Exit on RSI extreme oversold only
+            if indicators.rsi and indicators.rsi <= self.rsi_oversold - 5:
                 return Signal(
                     signal=SignalType.BUY,
-                    reason=f"RSI oversold ({indicators.rsi:.1f})",
+                    reason=f"RSI extremely oversold ({indicators.rsi:.1f})",
                     strength=0.7,
                     symbol=symbol,
                     price=current_price,
                     details=details
                 )
             
-            if indicators.last_crossover == CrossoverType.BULLISH:
+            # Exit on bullish crossover with trend confirmation
+            if indicators.last_crossover == CrossoverType.BULLISH and indicators.trend == 'uptrend':
                 return Signal(
                     signal=SignalType.BUY,
-                    reason="Bullish EMA crossover",
+                    reason="Bullish EMA crossover in uptrend",
                     strength=0.6,
                     symbol=symbol,
                     price=current_price,

@@ -95,14 +95,23 @@ class StrategySettings(BaseModel):
         description="Lookback period for pivot/resistance detection"
     )
     
+    min_signal_confidence: float = Field(
+        default=0.35, ge=0, le=1.0,
+        description="Minimum signal confidence for entry"
+    )
+    
     # Regime filter parameters (matching backtest)
     min_adx_for_entry: float = Field(
-        default=15.0, ge=0,
+        default=14.0, ge=0,
         description="Minimum ADX value for entry signals"
     )
     min_ema_spread_for_entry: float = Field(
-        default=0.005, ge=0,
-        description="Minimum EMA spread (as decimal) for entry signals (0.005 = 0.5%)"
+        default=0.003, ge=0,
+        description="Minimum EMA spread (as decimal) for entry signals (0.003 = 0.3%)"
+    )
+    max_atr_percent_for_entry: float = Field(
+        default=0.05, ge=0,
+        description="Maximum ATR as percent of price for entry signals (0.05 = 5%)"
     )
     
     # Signal strength position sizing parameters (matching backtest)

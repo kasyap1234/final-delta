@@ -97,6 +97,9 @@ class BacktestEngine:
         # Track active positions (symbol -> position_id)
         self.active_positions: Dict[str, str] = {}
         
+        # Track peak prices for trailing stops
+        self.position_peak_prices: Dict[str, float] = {}
+        
         logger.info("BacktestEngine initialized")
     
     async def run(self) -> Dict[str, Any]:
@@ -187,6 +190,10 @@ class BacktestEngine:
             strategy_config.ema_trend = indicators.get('ema_trend', 200)
             strategy_config.rsi_period = indicators.get('rsi_period', 14)
             strategy_config.atr_period = indicators.get('atr_period', 14)
+            strategy_config.max_atr_percent_for_entry = indicators.get(
+                'max_atr_percent_for_entry',
+                strategy_config.max_atr_percent_for_entry
+            )
         
         if self.config.trading_bot_config and 'risk' in self.config.trading_bot_config:
             risk = self.config.trading_bot_config['risk']
@@ -194,6 +201,10 @@ class BacktestEngine:
             strategy_config.max_risk_per_trade_percent = risk.get('max_risk_per_trade_percent', 2.0)
             strategy_config.stop_loss_atr_multiplier = risk.get('stop_loss_atr_multiplier', 2.0)
             strategy_config.take_profit_rr_ratio = risk.get('take_profit_rr_ratio', 2.0)
+            strategy_config.max_atr_percent_for_entry = risk.get(
+                'max_atr_percent_for_entry',
+                strategy_config.max_atr_percent_for_entry
+            )
         
         self.strategy_engine = BacktestStrategyEngine(
             config=strategy_config,
@@ -205,7 +216,7 @@ class BacktestEngine:
     def _get_risk_config(self) -> Dict[str, Any]:
         """Extract risk configuration from backtest config."""
         risk_config = {
-            'max_total_exposure_percent': 80.0,
+            'max_total_exposure_percent': 150.0,
             'max_total_risk_percent': 5.0,
             'max_positions': 10,
             'daily_loss_limit_percent': 3.0,
@@ -303,11 +314,8 @@ class BacktestEngine:
             # Process orders for this candle
             await self._process_candle(timestamp)
             
-            # Update account state with current prices
-            await self._update_account_state()
-            
-            # Update portfolio tracker with current prices
-            await self._update_portfolio_tracker()
+            # Update account state and portfolio tracker with current prices (single price fetch)
+            await self._update_prices()
             
             # Record equity point
             self._record_equity_point()
@@ -369,9 +377,8 @@ class BacktestEngine:
                 # Run strategy logic to generate new signals
                 await self._execute_strategy(symbol, candle, timestamp)
     
-    async def _update_account_state(self) -> None:
-        """Update account state with current prices."""
-        # Get current prices for all symbols
+    async def _update_prices(self) -> None:
+        """Update account state and portfolio tracker with current prices (single fetch)."""
         current_prices = {}
         for symbol in self.config.symbols:
             price = self.data_cache.get_latest_price(symbol)
@@ -384,14 +391,6 @@ class BacktestEngine:
         # Update state manager with prices
         for symbol, price in current_prices.items():
             self.state_manager.update_last_price(symbol, price)
-    
-    async def _update_portfolio_tracker(self) -> None:
-        """Update portfolio tracker with current prices."""
-        current_prices = {}
-        for symbol in self.config.symbols:
-            price = self.data_cache.get_latest_price(symbol)
-            if price is not None:
-                current_prices[symbol] = price
         
         # Update all position prices
         self.portfolio_tracker.update_all_positions(current_prices)
@@ -424,15 +423,51 @@ class BacktestEngine:
         exit_price = None
         exit_reason = None
         
-        # Check stop loss
+        # Update peak price tracking for trailing stops
+        if symbol not in self.position_peak_prices:
+            self.position_peak_prices[symbol] = position.entry_price
+        
+        if side == 'long':
+            self.position_peak_prices[symbol] = max(
+                self.position_peak_prices[symbol], candle.high
+            )
+        else:
+            self.position_peak_prices[symbol] = min(
+                self.position_peak_prices[symbol], candle.low
+            )
+        
+        # Check trailing stop (activate after 1.5x ATR profit)
+        peak_price = self.position_peak_prices[symbol]
+        indicators = self.strategy_engine.indicator_manager.get_latest(symbol) if self.strategy_engine else None
+        atr = getattr(indicators, 'atr', None) if indicators else None
+        if atr and atr > 0:
+            trailing_distance = atr * 2.5
+            if side == 'long':
+                profit_from_entry = peak_price - position.entry_price
+                if profit_from_entry > atr * 1.5:
+                    trailing_stop = peak_price - trailing_distance
+                    if candle.low <= trailing_stop:
+                        exit_triggered = True
+                        exit_price = max(candle.open, trailing_stop)
+                        exit_reason = 'trailing_stop'
+            else:  # short
+                profit_from_entry = position.entry_price - peak_price
+                if profit_from_entry > atr * 1.5:
+                    trailing_stop = peak_price + trailing_distance
+                    if candle.high >= trailing_stop:
+                        exit_triggered = True
+                        exit_price = min(candle.open, trailing_stop)
+                        exit_reason = 'trailing_stop'
+        
+        # Check stop loss / take profit (highest priority — overrides trailing stop)
         if side == 'long':
             if candle.low <= stop_loss:
                 exit_triggered = True
-                exit_price = max(candle.open, stop_loss)  # Assume fill at stop or better
+                exit_price = max(candle.open, stop_loss)
                 exit_reason = 'stop_loss'
             elif candle.high >= take_profit:
                 exit_triggered = True
-                exit_price = min(candle.open, take_profit)  # Assume fill at take profit or better
+                exit_price = min(candle.open, take_profit)
                 exit_reason = 'take_profit'
         else:  # short
             if candle.high >= stop_loss:
@@ -443,6 +478,27 @@ class BacktestEngine:
                 exit_triggered = True
                 exit_price = max(candle.open, take_profit)
                 exit_reason = 'take_profit'
+        
+        # Check signal-based exits (matching live bot's _manage_positions)
+        if not exit_triggered and self.strategy_engine:
+            candle_data = {
+                'open': candle.open,
+                'high': candle.high,
+                'low': candle.low,
+                'close': candle.close,
+                'volume': candle.volume,
+            }
+            exit_signal = self.strategy_engine.check_position_exit(
+                symbol=symbol,
+                candle=candle_data,
+                timestamp=candle.timestamp,
+                entry_price=position.entry_price,
+                position_type=side,
+            )
+            if exit_signal:
+                exit_triggered = True
+                exit_price = candle.close
+                exit_reason = f'signal_{exit_signal.reason}'
         
         if exit_triggered and exit_price:
             # Close position in portfolio tracker
@@ -470,6 +526,13 @@ class BacktestEngine:
                 # Remove from active positions tracking
                 if symbol in self.active_positions:
                     del self.active_positions[symbol]
+                
+                # Clean up strategy engine tracking
+                if self.strategy_engine:
+                    self.strategy_engine.close_position(symbol)
+                
+                # Clean up trailing stop tracking
+                self.position_peak_prices.pop(symbol, None)
                 
                 # Update account state
                 self.account_state.close_position(symbol, exit_price)
@@ -579,12 +642,18 @@ class BacktestEngine:
             )
             return
         
-        # Check if we have enough balance
+        # Check if we have enough balance (leverage-aware)
         position_value = position_size * entry_price
-        if position_value > balance.free * 0.95:  # Leave some buffer
+        max_leverage = 5.0  # Default
+        if self.config.trading_bot_config and 'risk' in self.config.trading_bot_config:
+            max_leverage = self.config.trading_bot_config['risk'].get('max_leverage', 5.0)
+
+        required_margin = position_value / max_leverage
+        if required_margin > balance.free * 0.95:  # Leave some buffer
             logger.warning(
-                f"Insufficient balance for {symbol} trade. "
-                f"Needed: ${position_value:.2f}, Free: ${balance.free:.2f}"
+                f"Insufficient margin for {symbol} trade. "
+                f"Position value: ${position_value:.2f}, Required margin: ${required_margin:.2f}, "
+                f"Free: ${balance.free:.2f}"
             )
             return
         
@@ -664,6 +733,15 @@ class BacktestEngine:
             # Track active position
             self.active_positions[symbol] = position.position_id
             
+            # Register with strategy engine for exit tracking
+            if self.strategy_engine:
+                self.strategy_engine.register_position(
+                    symbol=symbol,
+                    entry_price=entry_price,
+                    position_type=side,
+                    position_size=position_size,
+                )
+            
             # Update risk manager balance
             self.risk_manager.set_account_balance(self.portfolio_tracker.get_account_balance())
             
@@ -706,10 +784,9 @@ class BacktestEngine:
         timestamps = set()
         
         for symbol, candles in self.historical_data.items():
-            for candle in candles:
-                timestamps.add(candle.timestamp)
+            timestamps.update(c.timestamp for c in candles)
         
-        return list(timestamps)
+        return sorted(timestamps)
     
     def _generate_results(self) -> Dict[str, Any]:
         """
