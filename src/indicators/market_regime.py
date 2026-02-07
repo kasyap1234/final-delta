@@ -136,23 +136,21 @@ class AdaptiveMarketRegimeDetector:
         # Adjust based on volatility history if we have enough data
         if len(self.volatility_history) >= 30:
             vol_array = np.array(self.volatility_history)
-            vol_50th = np.percentile(vol_array, 50)
+            vol_25th = np.percentile(vol_array, 25)
             vol_75th = np.percentile(vol_array, 75)
-            vol_90th = np.percentile(vol_array, 90)
-            vol_10th = np.percentile(vol_array, 10)
 
-            # Dynamic volatility thresholds
-            thresholds["vol_low"] = vol_10th * 1.2
-            thresholds["vol_high"] = vol_90th * 0.8
+            # Dynamic volatility thresholds using 25th/75th percentiles
+            thresholds["vol_low"] = vol_25th
+            thresholds["vol_high"] = vol_75th
 
             # Adjust BB thresholds based on volatility regime
             if len(self.bb_width_history) >= 30:
                 bb_array = np.array(self.bb_width_history)
-                bb_50th = np.percentile(bb_array, 50)
+                bb_25th = np.percentile(bb_array, 25)
                 bb_75th = np.percentile(bb_array, 75)
 
-                thresholds["bb_squeeze"] = bb_50th * 0.6
-                thresholds["bb_volatile"] = bb_75th * 1.3
+                thresholds["bb_squeeze"] = bb_25th
+                thresholds["bb_volatile"] = bb_75th
 
         # Adjust ADX thresholds based on ADX history
         if len(self.adx_history) >= 30:
@@ -411,16 +409,29 @@ class AdaptiveMarketRegimeDetector:
         return MarketRegime.UNKNOWN, 0.0, indicator_scores
 
     def _smooth_regime(self, new_regime: MarketRegime) -> MarketRegime:
-        """Apply smoothing to avoid rapid regime switches."""
+        """Apply smoothing to avoid rapid regime switches.
+
+        Smoothing only applies when the regime is CHANGING. If the new regime
+        matches the current regime, it passes through immediately (no lag).
+        For regime changes, require 2 out of 3 recent detections to confirm.
+        """
         self.regime_history.append(new_regime)
 
         if len(self.regime_history) > self.max_history:
             self.regime_history.pop(0)
 
-        if len(self.regime_history) < 3:
+        if len(self.regime_history) < 2:
             return new_regime
 
-        # Require at least 2 out of 3 recent regimes to match for a switch
+        # If new regime matches the current (previous) regime, no smoothing needed
+        current_regime = self.regime_history[-2]
+        if new_regime == current_regime:
+            return new_regime
+
+        # Regime is changing - require confirmation (2 out of 3)
+        if len(self.regime_history) < 3:
+            return current_regime  # Not enough history to confirm change
+
         from collections import Counter
 
         regime_counts = Counter(self.regime_history[-3:])
@@ -429,8 +440,8 @@ class AdaptiveMarketRegimeDetector:
         if most_common[1] >= 2:
             return most_common[0]
 
-        # Stay with previous regime if no clear consensus
-        return self.regime_history[-2] if len(self.regime_history) >= 2 else new_regime
+        # No clear consensus for change - stay with current regime
+        return current_regime
 
     def should_trade_in_regime(self, regime: MarketRegime) -> Tuple[bool, float]:
         """

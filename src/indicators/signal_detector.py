@@ -405,46 +405,74 @@ class SignalDetector:
         # Separate buy and sell signals
         buy_signals = [s for s in signals if s[0] in (SignalType.BUY, SignalType.STRONG_BUY)]
         sell_signals = [s for s in signals if s[0] in (SignalType.SELL, SignalType.STRONG_SELL)]
-        
+
         # Calculate total strength for each side
         buy_strength = sum(s[1] for s in buy_signals)
         sell_strength = sum(s[1] for s in sell_signals)
-        
+
+        # Net directional margin: require clear conviction in one direction
+        # This prevents conflicting signals (e.g. buy=0.3 + sell=0.6) from generating trades
+        net_margin = abs(buy_strength - sell_strength)
+        min_net_margin = self.config.get('min_net_margin', 0.4)
+
+        # Minimum confirmation: require at least 2 indicators agreeing with strength > 0.3
+        min_confirmations = self.config.get('min_confirmation_signals', 2)
+
         # Determine final signal
-        if buy_strength > sell_strength and buy_strength >= self.weak_signal_threshold:
-            # Buy signal
-            if buy_strength >= self.strong_signal_threshold:
+        if (buy_strength > sell_strength
+                and buy_strength >= self.weak_signal_threshold
+                and net_margin >= min_net_margin):
+            # Check confirmation count
+            confirming_buy = [s for s in buy_signals if s[1] > 0.3]
+            if len(confirming_buy) < min_confirmations:
+                signal_type = SignalType.NONE
+                reason = f"Insufficient buy confirmations ({len(confirming_buy)}/{min_confirmations})"
+                strength = 0.0
+            elif buy_strength >= self.strong_signal_threshold:
                 signal_type = SignalType.STRONG_BUY
+                reasons = [s[2] for s in buy_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Buy signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(buy_strength, indicators, 'buy')
+                else:
+                    strength = min(buy_strength, 1.0)
             else:
                 signal_type = SignalType.BUY
-            
-            reasons = [s[2] for s in buy_signals if s[1] > 0]
-            reason = "; ".join(reasons) if reasons else "Buy signal"
-            
-            # Enhance strength with ADX, EMA spread, and RSI confirmation
-            if indicators:
-                strength = self._calculate_signal_strength(buy_strength, indicators, 'buy')
-            else:
-                strength = min(buy_strength, 1.0)
-            
-        elif sell_strength > buy_strength and sell_strength >= self.weak_signal_threshold:
-            # Sell signal
-            if sell_strength >= self.strong_signal_threshold:
+                reasons = [s[2] for s in buy_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Buy signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(buy_strength, indicators, 'buy')
+                else:
+                    strength = min(buy_strength, 1.0)
+
+        elif (sell_strength > buy_strength
+                and sell_strength >= self.weak_signal_threshold
+                and net_margin >= min_net_margin):
+            # Check confirmation count
+            confirming_sell = [s for s in sell_signals if s[1] > 0.3]
+            if len(confirming_sell) < min_confirmations:
+                signal_type = SignalType.NONE
+                reason = f"Insufficient sell confirmations ({len(confirming_sell)}/{min_confirmations})"
+                strength = 0.0
+            elif sell_strength >= self.strong_signal_threshold:
                 signal_type = SignalType.STRONG_SELL
+                reasons = [s[2] for s in sell_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Sell signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(sell_strength, indicators, 'sell')
+                else:
+                    strength = min(sell_strength, 1.0)
             else:
                 signal_type = SignalType.SELL
-            
-            reasons = [s[2] for s in sell_signals if s[1] > 0]
-            reason = "; ".join(reasons) if reasons else "Sell signal"
-            
-            # Enhance strength with ADX, EMA spread, and RSI confirmation
-            if indicators:
-                strength = self._calculate_signal_strength(sell_strength, indicators, 'sell')
-            else:
-                strength = min(sell_strength, 1.0)
-            
+                reasons = [s[2] for s in sell_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Sell signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(sell_strength, indicators, 'sell')
+                else:
+                    strength = min(sell_strength, 1.0)
+
         else:
-            # No clear signal
+            # No clear signal (insufficient margin or strength)
             signal_type = SignalType.NONE
             reason = "No clear signal"
             strength = 0.0

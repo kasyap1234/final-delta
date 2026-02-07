@@ -817,7 +817,7 @@ class BacktestEngine:
             'max_drawdown': performance.get('max_drawdown', 0.0),
             'win_rate': performance_summary.get('win_rate', 0.0),
             'total_trades': performance_summary.get('total_trades', 0),
-            'total_fees': self.account_state.get_total_fees_paid() if self.account_state else 0.0,
+            'total_fees': self._calculate_total_fees(),
             'final_equity': final_equity,
             'initial_balance': initial_balance,
             'start_date': self.config.start_date.isoformat(),
@@ -849,6 +849,14 @@ class BacktestEngine:
         
         return results
     
+    def _calculate_total_fees(self) -> float:
+        """Calculate total fees from portfolio tracker trade history."""
+        total_fees = 0.0
+        if self.portfolio_tracker:
+            for trade in self.portfolio_tracker.get_trade_history():
+                total_fees += getattr(trade, 'fees_paid', 0.0)
+        return total_fees
+
     def _calculate_performance_metrics(self) -> Dict[str, Any]:
         """
         Calculate performance metrics.

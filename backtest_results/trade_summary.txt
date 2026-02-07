@@ -1,13 +1,13 @@
 ============================================================
 TRADE SUMMARY
 ============================================================
-Total Trades: 229
-Winning Trades: 101
-Losing Trades: 128
-Win Rate: 44.10%
-Total P&L: $-525.11
+Total Trades: 64
+Winning Trades: 35
+Losing Trades: 29
+Win Rate: 54.69%
+Total P&L: $282.96
 Total Fees: $0.00
-Net P&L: $-525.11
-Avg Win: $21.38
-Avg Loss: $-20.97
+Net P&L: $282.96
+Avg Win: $24.51
+Avg Loss: $-19.83
 ============================================================

@@ -594,19 +594,19 @@ class PositionSizer:
         # Factor 1: Signal strength (0.3 to 1.0)
         signal_factor = 0.3 + (signal_strength * 0.7)
 
-        # Factor 2: Regime-based leverage
-        leverage = 1.0
+        # Factor 2: Regime-based position modifier (NOT leverage)
+        # Leverage is controlled via max_leverage config and margin checks in engine.py
+        regime_modifier = 1.0
         if regime_metrics is not None:
             current_regime = getattr(regime_metrics, "regime", None)
             if current_regime is not None:
-                leverage = self._get_regime_leverage(current_regime)
+                regime_modifier = self._get_regime_position_modifier(current_regime)
 
-        # Scale leverage by regime confidence
-        if regime_metrics is not None:
+            # Scale modifier by regime confidence
             confidence = getattr(regime_metrics, "confidence", 0.5)
-            # Scale leverage: at confidence 0.5 use 60% of leverage, at 1.0 use full
+            # At low confidence, pull modifier toward 1.0 (neutral)
             conf_scale = 0.6 + (confidence * 0.4)
-            leverage *= conf_scale
+            regime_modifier = 1.0 + (regime_modifier - 1.0) * conf_scale
 
         # Factor 3: Recent performance (0.85 to 1.0)
         performance_factor = 1.0
@@ -629,13 +629,13 @@ class PositionSizer:
             if base_risk_decimal > 0:
                 kelly_factor = min(1.0, max(0.25, kelly_pct / base_risk_decimal))
 
-        # Calculate combined multiplier (leverage applied last)
+        # Calculate combined multiplier (no hidden leverage - leverage is via margin)
         total_multiplier = (
             signal_factor
             * performance_factor
             * drawdown_factor
             * kelly_factor
-            * leverage
+            * regime_modifier
         )
 
         # Apply multiplier to position size
@@ -646,7 +646,7 @@ class PositionSizer:
             f"All-weather sizing for {symbol}: "
             f"base={position_size:.4f}, "
             f"signal={signal_factor:.2f}, "
-            f"leverage={leverage:.2f}, "
+            f"regime_mod={regime_modifier:.2f}, "
             f"performance={performance_factor:.2f}, "
             f"drawdown={drawdown_factor:.2f}, "
             f"kelly={kelly_factor:.2f}, "
@@ -668,21 +668,25 @@ class PositionSizer:
             else None,
         )
 
-    def _get_regime_leverage(self, regime: Any) -> float:
-        """Get leverage multiplier for a specific regime."""
+    def _get_regime_position_modifier(self, regime: Any) -> float:
+        """Get position size modifier for a specific regime.
+
+        Returns a 0.8-1.2 range modifier for position sizing based on regime.
+        Leverage is controlled separately via max_leverage config and margin checks.
+        """
         # Handle both enum and string regimes
         regime_value = regime.value if hasattr(regime, "value") else str(regime)
 
-        leverage_map = {
-            "trending_up": 3.0,
-            "trending_down": 3.0,
-            "ranging": 2.0,
-            "volatile": 1.0,
-            "quiet": 1.5,
-            "unknown": 1.0,
+        modifier_map = {
+            "trending_up": 1.2,
+            "trending_down": 1.2,
+            "ranging": 1.0,
+            "volatile": 0.8,
+            "quiet": 0.9,
+            "unknown": 0.8,
         }
 
-        return min(leverage_map.get(regime_value, 1.0), self.max_leverage)
+        return modifier_map.get(regime_value, 1.0)
 
     def _calculate_drawdown_factor(self, current_drawdown: float) -> float:
         """Calculate position size factor based on current drawdown."""

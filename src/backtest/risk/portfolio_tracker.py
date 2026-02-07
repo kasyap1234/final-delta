@@ -682,7 +682,7 @@ class PortfolioTracker:
             'total_trades': len(self._trade_history),
             'winning_trades': win_count,
             'losing_trades': loss_count,
-            'win_rate': (win_count / len(self._trade_history) * 100) if self._trade_history else 0,
+            'win_rate': (win_count / len(self._trade_history)) if self._trade_history else 0,
             'avg_win': (sum(wins) / len(wins)) if wins else 0,
             'avg_loss': (sum(losses) / len(losses)) if losses else 0,
             'largest_win': max(wins) if wins else 0,
