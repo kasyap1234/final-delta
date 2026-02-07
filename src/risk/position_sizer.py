@@ -5,53 +5,14 @@ management for risk-controlled trading.
 """
 
 from typing import Dict, Optional, Any, Union
-from dataclasses import dataclass
-from enum import Enum
 import numpy as np
 import logging
 
+from src.shared.risk_types import (
+    PositionType, PositionSizeResult, StopLossResult, TakeProfitResult
+)
+
 logger = logging.getLogger(__name__)
-
-
-class PositionType(str, Enum):
-    """Position direction types."""
-
-    LONG = "long"
-    SHORT = "short"
-
-
-@dataclass
-class PositionSizeResult:
-    """Result of position size calculation."""
-
-    position_size: float
-    risk_amount: float
-    stop_loss_distance: float
-    is_valid: bool
-    error_message: Optional[str] = None
-    adjusted_size: Optional[float] = None
-
-
-@dataclass
-class StopLossResult:
-    """Result of stop loss calculation."""
-
-    stop_loss_price: float
-    atr_value: float
-    atr_multiplier: float
-    stop_loss_distance: float
-    stop_loss_percent: float
-
-
-@dataclass
-class TakeProfitResult:
-    """Result of take profit calculation."""
-
-    take_profit_price: float
-    risk_reward_ratio: float
-    potential_profit: float
-    potential_profit_percent: float
-    stop_loss_distance: float
 
 
 class PositionSizer:

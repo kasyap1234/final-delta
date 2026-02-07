@@ -1,27 +1,20 @@
-"""Backtest hedge management module.
+"""Backtest hedge management module."""
 
-This module provides backtest versions of hedge management classes
-that work with the mock exchange and account state.
-"""
+from .position_group import PositionGroup
+from .hedge_executor import BacktestHedgeExecutor
+from .hedge_manager import BacktestHedgeManager
 
-from .position_group import (
+from src.shared.hedge_types import (
     HedgeStatus,
     HedgePosition,
     OriginalPosition,
-    PositionGroup
-)
-from .hedge_executor import (
     HedgeRequest,
     HedgeChunk,
     HedgeExecutionResult,
     HedgeExecutorConfig,
-    BacktestHedgeExecutor
-)
-from .hedge_manager import (
     HedgeManagerConfig,
     HedgeTriggerResult,
     HedgeCloseResult,
-    BacktestHedgeManager
 )
 
 __all__ = [
@@ -37,5 +30,5 @@ __all__ = [
     'HedgeManagerConfig',
     'HedgeTriggerResult',
     'HedgeCloseResult',
-    'BacktestHedgeManager'
+    'BacktestHedgeManager',
 ]

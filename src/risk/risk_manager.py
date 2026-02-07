@@ -5,64 +5,16 @@ risk limits, and position validation.
 """
 
 from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
 import numpy as np
 from collections import defaultdict
+import logging
 
+from src.shared.risk_types import (
+    RiskStatus, RiskCheckResult, PositionRisk, DailyRiskMetrics
+)
 
-class RiskStatus(str, Enum):
-    """Risk check status."""
-
-    ALLOWED = "allowed"
-    DENIED = "denied"
-    WARNING = "warning"
-
-
-@dataclass
-class RiskCheckResult:
-    """Result of a risk check."""
-
-    can_trade: bool
-    status: RiskStatus
-    reason: Optional[str] = None
-    current_exposure: float = 0.0
-    max_exposure: float = 0.0
-    current_risk: float = 0.0
-    max_risk: float = 0.0
-    remaining_capacity: float = 0.0
-
-
-@dataclass
-class PositionRisk:
-    """Risk information for a position."""
-
-    position_id: str
-    symbol: str
-    side: str
-    size: float
-    entry_price: float
-    stop_loss_price: float
-    risk_amount: float
-    risk_percent: float
-    unrealized_pnl: float = 0.0
-    opened_at: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class DailyRiskMetrics:
-    """Daily risk tracking metrics."""
-
-    date: datetime
-    total_pnl: float = 0.0
-    realized_pnl: float = 0.0
-    unrealized_pnl: float = 0.0
-    num_trades: int = 0
-    num_wins: int = 0
-    num_losses: int = 0
-    max_drawdown: float = 0.0
-    total_risk_taken: float = 0.0
+logger = logging.getLogger(__name__)
 
 
 class RiskManager:
@@ -133,6 +85,10 @@ class RiskManager:
         self._pause_reason: Optional[str] = None
         self._pause_until: Optional[datetime] = None
 
+    def _get_current_time(self) -> datetime:
+        """Get the current time. Overridden in backtest subclass for simulated time."""
+        return datetime.now()
+
     def can_open_position(
         self,
         symbol: str,
@@ -142,19 +98,7 @@ class RiskManager:
         current_positions: List[Dict[str, Any]],
         account_balance: Optional[float] = None,
     ) -> RiskCheckResult:
-        """Check if a new position can be opened based on risk rules.
-
-        Args:
-            symbol: Trading pair symbol
-            position_size: Proposed position size
-            stop_loss_price: Stop loss price
-            entry_price: Entry price
-            current_positions: List of current open positions
-            account_balance: Current account balance (uses tracked balance if None)
-
-        Returns:
-            RiskCheckResult with trading permission and details
-        """
+        """Check if a new position can be opened based on risk rules."""
         balance = (
             account_balance if account_balance is not None else self._account_balance
         )
@@ -254,14 +198,7 @@ class RiskManager:
         )
 
     def calculate_total_exposure(self, positions: List[Dict[str, Any]]) -> float:
-        """Calculate total portfolio exposure.
-
-        Args:
-            positions: List of open positions
-
-        Returns:
-            Total exposure in base currency (sum of absolute position values)
-        """
+        """Calculate total portfolio exposure."""
         total = 0.0
         for pos in positions:
             size = abs(pos.get("size", 0))
@@ -270,14 +207,7 @@ class RiskManager:
         return total
 
     def calculate_total_risk(self, positions: List[Dict[str, Any]]) -> float:
-        """Calculate total risk across all positions.
-
-        Args:
-            positions: List of open positions
-
-        Returns:
-            Total risk amount (sum of individual position risks)
-        """
+        """Calculate total risk across all positions."""
         total_risk = 0.0
         for pos in positions:
             size = abs(pos.get("size", 0))
@@ -296,16 +226,7 @@ class RiskManager:
         account_balance: float,
         limit_percent: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Check if daily loss limit has been exceeded.
-
-        Args:
-            daily_pnl: Current daily P&L
-            account_balance: Current account balance
-            limit_percent: Optional override for daily loss limit percent
-
-        Returns:
-            Dictionary with limit check results
-        """
+        """Check if daily loss limit has been exceeded."""
         limit = (
             limit_percent
             if limit_percent is not None
@@ -331,16 +252,7 @@ class RiskManager:
         account_balance: float,
         limit_percent: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Check if weekly loss limit has been exceeded.
-
-        Args:
-            weekly_pnl: Current weekly P&L
-            account_balance: Current account balance
-            limit_percent: Optional override for weekly loss limit percent
-
-        Returns:
-            Dictionary with limit check results
-        """
+        """Check if weekly loss limit has been exceeded."""
         limit = (
             limit_percent
             if limit_percent is not None
@@ -366,16 +278,7 @@ class RiskManager:
         current_risk: Optional[float] = None,
         current_positions: Optional[List[Dict[str, Any]]] = None,
     ) -> float:
-        """Get remaining risk capacity before hitting limits.
-
-        Args:
-            account_balance: Current account balance
-            current_risk: Current total risk (calculated from positions if None)
-            current_positions: List of current positions (used if current_risk is None)
-
-        Returns:
-            Remaining risk capacity in base currency
-        """
+        """Get remaining risk capacity before hitting limits."""
         if current_risk is None:
             if current_positions is None:
                 current_positions = []
@@ -395,18 +298,7 @@ class RiskManager:
         stop_loss_price: Optional[float] = None,
         risk_percent: Optional[float] = None,
     ) -> None:
-        """Track position risk.
-
-        Args:
-            position_id: Unique position identifier
-            risk_amount: Dollar amount at risk
-            symbol: Trading pair symbol
-            side: Position side ('long' or 'short')
-            size: Position size
-            entry_price: Entry price
-            stop_loss_price: Stop loss price
-            risk_percent: Risk as percentage of account
-        """
+        """Track position risk."""
         self.position_risks[position_id] = PositionRisk(
             position_id=position_id,
             symbol=symbol or "",
@@ -419,38 +311,24 @@ class RiskManager:
         )
 
     def remove_position_risk(self, position_id: str) -> None:
-        """Remove position from risk tracking.
-
-        Args:
-            position_id: Position identifier to remove
-        """
+        """Remove position from risk tracking."""
         if position_id in self.position_risks:
             del self.position_risks[position_id]
 
     def update_position_pnl(self, position_id: str, unrealized_pnl: float) -> None:
-        """Update unrealized P&L for a position.
-
-        Args:
-            position_id: Position identifier
-            unrealized_pnl: Current unrealized P&L
-        """
+        """Update unrealized P&L for a position."""
         if position_id in self.position_risks:
             self.position_risks[position_id].unrealized_pnl = unrealized_pnl
 
     def record_trade_result(
         self, symbol: str, realized_pnl: float, risk_amount: float
     ) -> None:
-        """Record a completed trade result.
-
-        Args:
-            symbol: Trading pair symbol
-            realized_pnl: Realized P&L from the trade
-            risk_amount: Amount risked on the trade
-        """
-        today = datetime.now().strftime("%Y-%m-%d")
+        """Record a completed trade result."""
+        now = self._get_current_time()
+        today = now.strftime("%Y-%m-%d")
 
         if today not in self.daily_metrics:
-            self.daily_metrics[today] = DailyRiskMetrics(date=datetime.now())
+            self.daily_metrics[today] = DailyRiskMetrics(date=now)
 
         metrics = self.daily_metrics[today]
         metrics.total_pnl += realized_pnl
@@ -474,14 +352,7 @@ class RiskManager:
             self._current_drawdown = max(0, self._current_drawdown - realized_pnl)
 
     def check_drawdown_limit(self, account_balance: float) -> Dict[str, Any]:
-        """Check if drawdown limit has been exceeded.
-
-        Args:
-            account_balance: Current account balance
-
-        Returns:
-            Dictionary with drawdown check results
-        """
+        """Check if drawdown limit has been exceeded."""
         if account_balance <= 0 or self._peak_balance <= 0:
             return {"limit_breached": False, "current_drawdown": 0.0}
 
@@ -500,21 +371,16 @@ class RiskManager:
         }
 
     def check_circuit_breakers(self, account_balance: float) -> Dict[str, Any]:
-        """Check all circuit breaker conditions.
+        """Check all circuit breaker conditions."""
+        now = self._get_current_time()
 
-        Args:
-            account_balance: Current account balance
-
-        Returns:
-            Dictionary with circuit breaker status
-        """
         # Check if trading is already paused
         if self._trading_paused:
-            if self._pause_until and datetime.now() < self._pause_until:
+            if self._pause_until and now < self._pause_until:
                 return {
                     "trading_allowed": False,
                     "reason": self._pause_reason,
-                    "pause_remaining": (self._pause_until - datetime.now()).seconds,
+                    "pause_remaining": (self._pause_until - now).seconds,
                 }
             else:
                 # Resume trading
@@ -549,24 +415,15 @@ class RiskManager:
         return {"trading_allowed": True, "reason": None}
 
     def _pause_trading(self, reason: str, minutes: int = 30) -> None:
-        """Pause trading for a specified duration.
-
-        Args:
-            reason: Reason for pausing
-            minutes: Duration to pause in minutes
-        """
+        """Pause trading for a specified duration."""
         self._trading_paused = True
         self._pause_reason = reason
-        self._pause_until = datetime.now() + timedelta(minutes=minutes)
+        self._pause_until = self._get_current_time() + timedelta(minutes=minutes)
 
         logger.warning(f"Trading paused: {reason}. Resuming at {self._pause_until}")
 
     def get_drawdown_status(self) -> Dict[str, Any]:
-        """Get current drawdown status.
-
-        Returns:
-            Dictionary with drawdown information
-        """
+        """Get current drawdown status."""
         return {
             "current_drawdown": self._current_drawdown,
             "peak_balance": self._peak_balance,
@@ -576,16 +433,9 @@ class RiskManager:
         }
 
     def get_daily_pnl(self, date: Optional[datetime] = None) -> float:
-        """Get P&L for a specific date.
-
-        Args:
-            date: Date to get P&L for (defaults to today)
-
-        Returns:
-            Total P&L for the date
-        """
+        """Get P&L for a specific date."""
         if date is None:
-            date = datetime.now()
+            date = self._get_current_time()
 
         date_str = date.strftime("%Y-%m-%d")
         if date_str in self.daily_metrics:
@@ -593,12 +443,8 @@ class RiskManager:
         return 0.0
 
     def get_weekly_pnl(self) -> float:
-        """Get P&L for the current week.
-
-        Returns:
-            Total P&L for the current week
-        """
-        today = datetime.now()
+        """Get P&L for the current week."""
+        today = self._get_current_time()
         start_of_week = today - timedelta(days=today.weekday())
 
         total = 0.0
@@ -609,11 +455,7 @@ class RiskManager:
         return total
 
     def set_correlation_groups(self, groups: Dict[str, List[str]]) -> None:
-        """Set correlation groups for risk management.
-
-        Args:
-            groups: Dictionary mapping group names to lists of symbols
-        """
+        """Set correlation groups for risk management."""
         self.correlation_groups = groups
 
     def _check_correlation_exposure(
@@ -623,17 +465,7 @@ class RiskManager:
         current_positions: List[Dict[str, Any]],
         account_balance: float,
     ) -> Dict[str, Any]:
-        """Check if position would exceed correlated exposure limits.
-
-        Args:
-            symbol: Trading pair symbol
-            position_value: Value of the new position
-            current_positions: Current open positions
-            account_balance: Account balance
-
-        Returns:
-            Dictionary with check results
-        """
+        """Check if position would exceed correlated exposure limits."""
         # Find which correlation group the symbol belongs to
         symbol_group = None
         for group_name, symbols in self.correlation_groups.items():
@@ -667,14 +499,7 @@ class RiskManager:
         return {"allowed": True}
 
     def get_risk_summary(self, account_balance: float) -> Dict[str, Any]:
-        """Get comprehensive risk summary.
-
-        Args:
-            account_balance: Current account balance
-
-        Returns:
-            Dictionary with risk summary
-        """
+        """Get comprehensive risk summary."""
         positions = list(self.position_risks.values())
 
         total_risk = sum(p.risk_amount for p in positions)
@@ -705,22 +530,14 @@ class RiskManager:
         }
 
     def set_account_balance(self, balance: float) -> None:
-        """Update tracked account balance.
-
-        Args:
-            balance: Current account balance
-        """
+        """Update tracked account balance."""
         self._account_balance = balance
         if balance > self._peak_balance:
             self._peak_balance = balance
             self._current_drawdown = 0
 
     def get_win_loss_stats(self) -> Dict[str, Any]:
-        """Get win/loss statistics.
-
-        Returns:
-            Dictionary with win/loss statistics
-        """
+        """Get win/loss statistics."""
         total_wins = sum(m.num_wins for m in self.daily_metrics.values())
         total_losses = sum(m.num_losses for m in self.daily_metrics.values())
         total_trades = total_wins + total_losses

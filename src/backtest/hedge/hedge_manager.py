@@ -6,59 +6,21 @@ hedge strategies with profit taking and re-hedging logic in backtest environment
 """
 
 import logging
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Callable
 
-from .position_group import (
-    PositionGroup,
-    OriginalPosition,
-    HedgePosition,
-    HedgeStatus
-)
-from .hedge_executor import (
-    BacktestHedgeExecutor,
-    HedgeRequest,
-    HedgeExecutionResult,
-    HedgeExecutorConfig
-)
+from .position_group import PositionGroup
+from .hedge_executor import BacktestHedgeExecutor
 from src.correlation.correlation_calculator import CorrelationCalculator
 from src.backtest.mock.exchange_client import BacktestExchangeClient
 from src.backtest.account_state import AccountState
+from src.shared.hedge_types import (
+    OriginalPosition, HedgePosition, HedgeStatus,
+    HedgeRequest, HedgeExecutionResult, HedgeExecutorConfig,
+    HedgeManagerConfig, HedgeTriggerResult, HedgeCloseResult
+)
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class HedgeManagerConfig:
-    """Configuration for HedgeManager."""
-    hedge_trigger_threshold: float = 0.5
-    profit_target_ratio: float = 2.0
-    enable_rehedging: bool = True
-    max_hedges_per_position: int = 5
-    auto_close_on_breakeven: bool = True
-    hedge_executor_config: Optional[HedgeExecutorConfig] = None
-
-
-@dataclass
-class HedgeTriggerResult:
-    """Result of hedge trigger check."""
-    should_hedge: bool
-    trigger_level: int
-    current_loss_pct: float
-    loss_amount: float
-    trigger_threshold: float
-    message: str
-
-
-@dataclass
-class HedgeCloseResult:
-    """Result of closing a hedge position."""
-    success: bool
-    hedge_id: str
-    realized_pnl: float
-    close_price: Optional[float] = None
-    error_message: Optional[str] = None
 
 
 class BacktestHedgeManager:

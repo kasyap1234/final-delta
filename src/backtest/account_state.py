@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Any
 from decimal import Decimal
 import logging
 
-from src.risk.portfolio_tracker import Position, PositionStatus
+from src.shared.risk_types import Position, PositionStatus
 from src.backtest.fees import FeeCalculator, FeeType, OrderType
 
 logger = logging.getLogger(__name__)

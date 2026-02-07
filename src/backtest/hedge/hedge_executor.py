@@ -5,78 +5,17 @@ calculating hedge sizes, and executing hedge positions through the mock exchange
 """
 
 import logging
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from src.correlation.correlation_calculator import CorrelationCalculator
 from src.backtest.mock.exchange_client import BacktestExchangeClient
 from src.backtest.account_state import AccountState
+from src.shared.hedge_types import (
+    PRIORITY_ASSETS, HedgeRequest, HedgeChunk, HedgeExecutionResult, HedgeExecutorConfig
+)
 
 logger = logging.getLogger(__name__)
-
-
-PRIORITY_ASSETS = ["BTC/USD", "ETH/USD", "SOL/USD", "BTC/USDT", "ETH/USDT", "SOL/USDT"]
-
-
-@dataclass
-class HedgeRequest:
-    """Request to open a hedge position."""
-    original_symbol: str
-    original_side: str
-    original_size: float
-    original_entry_price: float
-    original_stop_loss: float
-    current_price: float
-    hedge_symbol: Optional[str] = None
-    hedge_size: Optional[float] = None
-    num_chunks: int = 3
-    priority_assets: List[str] = field(default_factory=lambda: PRIORITY_ASSETS.copy())
-
-
-@dataclass
-class HedgeChunk:
-    """Represents a single chunk of a hedge position."""
-    chunk_id: str
-    symbol: str
-    side: str
-    size: float
-    target_price: float
-    order_id: Optional[str] = None
-    status: str = "pending"
-    filled_amount: float = 0.0
-    filled_price: Optional[float] = None
-    placed_at: Optional[datetime] = None
-    filled_at: Optional[datetime] = None
-    error_message: Optional[str] = None
-
-
-@dataclass
-class HedgeExecutionResult:
-    """Result of hedge execution."""
-    success: bool
-    hedge_id: str
-    symbol: str
-    side: str
-    total_size: float
-    filled_size: float
-    average_price: Optional[float] = None
-    chunks: List[HedgeChunk] = field(default_factory=list)
-    error_message: Optional[str] = None
-    execution_time_ms: float = 0.0
-
-
-@dataclass
-class HedgeExecutorConfig:
-    """Configuration for HedgeExecutor."""
-    num_chunks: int = 3
-    chunk_delay_seconds: float = 2.0
-    hedge_size_ratio: float = 0.5
-    min_correlation: float = 0.5
-    priority_assets: List[str] = field(default_factory=lambda: PRIORITY_ASSETS.copy())
-    post_only: bool = True
-    max_retries_per_chunk: int = 3
-    price_adjustment_step: float = 0.001
 
 
 class BacktestHedgeExecutor:
