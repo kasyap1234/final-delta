@@ -3,6 +3,8 @@ Enhanced Signal Detector with Mean Reversion
 
 Combines trend-following and mean-reversion signals for robust trading decisions.
 Uses regime-based weighting to adapt to market conditions.
+
+Phase 2: Layer B regime-specific alpha decomposition for expectancy-positive redesign.
 """
 
 from typing import Dict, Optional, Any, List, Tuple
@@ -20,7 +22,12 @@ from .technical_indicators import (
     calculate_ema_crossover,
 )
 from .indicator_manager import IndicatorValues
-from .market_regime import MarketRegimeDetector, MarketRegime, RegimeMetrics
+from .market_regime import (
+    MarketRegimeDetector,
+    MarketRegime,
+    RegimeMetrics,
+    get_regime_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +124,9 @@ class EnhancedSignalDetector:
         current_price: float,
         price_history: Optional[np.ndarray] = None,
         regime_metrics: Optional[RegimeMetrics] = None,
+        current_volume: Optional[float] = None,
+        avg_volume: Optional[float] = None,
+        regime_profile: Optional[Dict[str, Any]] = None,
     ) -> Signal:
         """
         Check for entry signals combining trend and mean reversion.
@@ -127,6 +137,9 @@ class EnhancedSignalDetector:
             current_price: Current market price
             price_history: Optional price history for divergence detection
             regime_metrics: Optional pre-calculated regime metrics
+            current_volume: Current candle volume
+            avg_volume: Average volume over lookback period
+            regime_profile: Optional regime profile dict from REGIME_PROFILES
 
         Returns:
             Signal object with combined signal
@@ -148,10 +161,14 @@ class EnhancedSignalDetector:
 
         regime = regime_metrics.regime
 
-        # Get adaptive weights based on regime
-        weights = self.regime_detector.get_adaptive_parameters(regime)
-        trend_weight = weights["trend_weight"]
-        mr_weight = weights["mean_reversion_weight"]
+        # Use regime profile weights if provided, otherwise fall back to adaptive params
+        if regime_profile is not None:
+            trend_weight = regime_profile["trend_weight"]
+            mr_weight = regime_profile["mr_weight"]
+        else:
+            weights = self.regime_detector.get_adaptive_parameters(regime)
+            trend_weight = weights["trend_weight"]
+            mr_weight = weights["mean_reversion_weight"]
 
         # Generate trend-following signal
         trend_signal = self._check_trend_signal(
@@ -167,6 +184,24 @@ class EnhancedSignalDetector:
         combined = self._combine_signals(
             trend_signal, mr_signal, trend_weight, mr_weight, regime
         )
+
+        # Volume confirmation filter: smooth scaling in low-volume candles.
+        volume_penalty_applied = False
+        if (
+            current_volume is not None
+            and avg_volume is not None
+            and avg_volume > 0
+            and combined["strength"] > 0
+        ):
+            vol_multiplier = 1.2  # default
+            if regime_profile is not None:
+                vol_multiplier = regime_profile.get("volume_multiplier", 1.2)
+            volume_ratio = current_volume / (vol_multiplier * avg_volume)
+            if volume_ratio < 1.0:
+                # Clamp to avoid collapsing all signals in quieter sessions.
+                volume_scale = max(0.65, min(1.0, volume_ratio))
+                combined["strength"] *= volume_scale
+                volume_penalty_applied = True
 
         # Create final signal
         final_signal = Signal(
@@ -189,6 +224,7 @@ class EnhancedSignalDetector:
                 "ema_9": indicators.ema_9,
                 "ema_50": indicators.ema_50,
                 "trend": indicators.trend,
+                "volume_penalty": volume_penalty_applied,
             },
         )
 
@@ -306,6 +342,7 @@ class EnhancedSignalDetector:
             divergence = None
             if price_history is not None and len(price_history) >= 28:
                 from .technical_indicators import calculate_rsi
+
                 rsi_history = calculate_rsi(price_history, period=14)
                 divergence = detect_rsi_divergence(
                     price_history[-28:], rsi_history[-28:]
@@ -334,6 +371,7 @@ class EnhancedSignalDetector:
             divergence = None
             if price_history is not None and len(price_history) >= 28:
                 from .technical_indicators import calculate_rsi
+
                 rsi_history = calculate_rsi(price_history, period=14)
                 divergence = detect_rsi_divergence(
                     price_history[-28:], rsi_history[-28:]
@@ -567,7 +605,11 @@ class EnhancedSignalDetector:
 
         if position_type == "long":
             # Exit on confirmed trend reversal (strong downtrend)
-            if indicators.trend == "downtrend" and indicators.adx is not None and indicators.adx > 25:
+            if (
+                indicators.trend == "downtrend"
+                and indicators.adx is not None
+                and indicators.adx > 25
+            ):
                 return Signal(
                     signal=SignalType.SELL,
                     reason="Trend reversal to downtrend",
@@ -577,19 +619,22 @@ class EnhancedSignalDetector:
                     details=details,
                 )
 
-            # Exit on RSI extreme overbought only
-            if indicators.rsi and indicators.rsi >= self.rsi_overbought + 5:
-                return Signal(
-                    signal=SignalType.SELL,
-                    reason=f"RSI extremely overbought ({indicators.rsi:.1f})",
-                    strength=0.7,
-                    symbol=symbol,
-                    price=current_price,
-                    details=details,
-                )
+            if indicators.rsi and indicators.rsi >= self.rsi_overbought + 15:
+                if indicators.adx is None or indicators.adx < 30:
+                    return Signal(
+                        signal=SignalType.SELL,
+                        reason=f"RSI extremely overbought ({indicators.rsi:.1f})",
+                        strength=0.7,
+                        symbol=symbol,
+                        price=current_price,
+                        details=details,
+                    )
 
             # Exit on bearish crossover with trend confirmation
-            if indicators.last_crossover == CrossoverType.BEARISH and indicators.trend == "downtrend":
+            if (
+                indicators.last_crossover == CrossoverType.BEARISH
+                and indicators.trend == "downtrend"
+            ):
                 return Signal(
                     signal=SignalType.SELL,
                     reason="Bearish EMA crossover in downtrend",
@@ -601,7 +646,11 @@ class EnhancedSignalDetector:
 
         else:  # short position
             # Exit on confirmed trend reversal (strong uptrend)
-            if indicators.trend == "uptrend" and indicators.adx is not None and indicators.adx > 25:
+            if (
+                indicators.trend == "uptrend"
+                and indicators.adx is not None
+                and indicators.adx > 25
+            ):
                 return Signal(
                     signal=SignalType.BUY,
                     reason="Trend reversal to uptrend",
@@ -611,19 +660,22 @@ class EnhancedSignalDetector:
                     details=details,
                 )
 
-            # Exit on RSI extreme oversold only
-            if indicators.rsi and indicators.rsi <= self.rsi_oversold - 5:
-                return Signal(
-                    signal=SignalType.BUY,
-                    reason=f"RSI extremely oversold ({indicators.rsi:.1f})",
-                    strength=0.7,
-                    symbol=symbol,
-                    price=current_price,
-                    details=details,
-                )
+            if indicators.rsi and indicators.rsi <= self.rsi_oversold - 15:
+                if indicators.adx is None or indicators.adx < 30:
+                    return Signal(
+                        signal=SignalType.BUY,
+                        reason=f"RSI extremely oversold ({indicators.rsi:.1f})",
+                        strength=0.7,
+                        symbol=symbol,
+                        price=current_price,
+                        details=details,
+                    )
 
             # Exit on bullish crossover with trend confirmation
-            if indicators.last_crossover == CrossoverType.BULLISH and indicators.trend == "uptrend":
+            if (
+                indicators.last_crossover == CrossoverType.BULLISH
+                and indicators.trend == "uptrend"
+            ):
                 return Signal(
                     signal=SignalType.BUY,
                     reason="Bullish EMA crossover in uptrend",
@@ -713,3 +765,425 @@ class EnhancedSignalDetector:
                 self.trend_performance["wins"] += 1
             else:
                 self.trend_performance["losses"] += 1
+
+
+# ─── Phase 2: Layer B Regime-Specific Alpha Decomposition ─────────────────────
+
+@dataclass
+class RegimeAlphaResult:
+    """Result of regime-specific alpha decomposition."""
+    
+    passed: bool  # Whether alpha confirmation passed
+    reason: str  # Reason for pass/fail
+    alpha_score: float  # Alpha quality score (0-1)
+    confirmation_factors: Dict[str, bool]  # Individual factor results
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "passed": self.passed,
+            "reason": self.reason,
+            "alpha_score": self.alpha_score,
+            "confirmation_factors": self.confirmation_factors,
+        }
+
+
+def check_trending_alpha(
+    indicators: IndicatorValues,
+    direction: str,
+    price_history: Optional[np.ndarray] = None,
+) -> RegimeAlphaResult:
+    """
+    Check trend regime alpha confirmation.
+    
+    Trending model requirements:
+    - Continuation pullback entries with structure alignment
+    - Breakout continuation entries with volume confirmation
+    - Invalidation when trend structure breaks and momentum decays
+    
+    Args:
+        indicators: IndicatorValues with technical indicators
+        direction: 'long' or 'short'
+        price_history: Price history for structure analysis
+    
+    Returns:
+        RegimeAlphaResult with confirmation status
+    """
+    factors = {}
+    score = 0.0
+    
+    # Factor 1: Trend structure alignment
+    if indicators.trend:
+        if direction == "long" and indicators.trend == "uptrend":
+            factors["trend_alignment"] = True
+            score += 0.35
+        elif direction == "short" and indicators.trend == "downtrend":
+            factors["trend_alignment"] = True
+            score += 0.35
+        else:
+            factors["trend_alignment"] = False
+    else:
+        factors["trend_alignment"] = False
+    
+    # Factor 2: EMA spread for structure
+    if indicators.ema_9 and indicators.ema_50:
+        ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+        if ema_spread >= 0.005:  # 0.5% minimum spread
+            factors["ema_structure"] = True
+            score += 0.25
+        else:
+            factors["ema_structure"] = False
+    else:
+        factors["ema_structure"] = False
+    
+    # Factor 3: ADX for trend strength
+    if indicators.adx is not None:
+        if indicators.adx >= 20.0:  # Minimum trend strength
+            factors["adx_strength"] = True
+            score += 0.20
+        else:
+            factors["adx_strength"] = False
+    else:
+        factors["adx_strength"] = False
+    
+    # Factor 4: Volume confirmation (if available)
+    # This is checked separately in multi-confirmation gate
+    factors["volume_confirmation"] = True  # Assume checked elsewhere
+    score += 0.20
+    
+    # Minimum score threshold for trending regime
+    min_score = 0.60
+    passed = score >= min_score
+    
+    reason = (
+        f"Trending alpha passed: score {score:.2f} >= {min_score:.2f}"
+        if passed
+        else f"Trending alpha failed: score {score:.2f} < {min_score:.2f}"
+    )
+    
+    return RegimeAlphaResult(
+        passed=passed,
+        reason=reason,
+        alpha_score=score,
+        confirmation_factors=factors,
+    )
+
+
+def check_ranging_alpha(
+    indicators: IndicatorValues,
+    direction: str,
+    price_history: Optional[np.ndarray] = None,
+) -> RegimeAlphaResult:
+    """
+    Check ranging regime alpha confirmation.
+    
+    Ranging model requirements:
+    - Edge-of-range mean reversion only
+    - Require rejection and structure confirmation near support or resistance
+    - Invalidation on range break with momentum expansion
+    
+    Args:
+        indicators: IndicatorValues with technical indicators
+        direction: 'long' or 'short'
+        price_history: Price history for structure analysis
+    
+    Returns:
+        RegimeAlphaResult with confirmation status
+    """
+    factors = {}
+    score = 0.0
+    
+    # Factor 1: RSI extreme for mean reversion
+    if indicators.rsi is not None:
+        if direction == "long" and indicators.rsi <= 35.0:
+            factors["rsi_oversold"] = True
+            score += 0.35
+        elif direction == "short" and indicators.rsi >= 65.0:
+            factors["rsi_overbought"] = True
+            score += 0.35
+        else:
+            factors["rsi_extreme"] = False
+    else:
+        factors["rsi_extreme"] = False
+    
+    # Factor 2: Structure near support/resistance
+    # Use EMA values as proxy for current price since close is not available
+    current_price_proxy = indicators.ema_9 if indicators.ema_9 else (indicators.ema_50 if indicators.ema_50 else 0)
+    
+    if indicators.s1 is not None and indicators.s2 is not None and current_price_proxy > 0:
+        if direction == "long":
+            # Check if near support
+            support_levels = np.array([indicators.s1, indicators.s2])
+            near_support, _ = is_near_support(
+                current_price_proxy,
+                support_levels,
+                0.005,
+            )
+            if near_support:
+                factors["near_structure"] = True
+                score += 0.30
+            else:
+                factors["near_structure"] = False
+        else:
+            # Check if near resistance
+            if indicators.r1 is not None and indicators.r2 is not None:
+                resistance_levels = np.array([indicators.r1, indicators.r2])
+                near_resistance, _ = is_near_resistance(
+                    current_price_proxy,
+                    resistance_levels,
+                    0.005,
+                )
+                if near_resistance:
+                    factors["near_structure"] = True
+                    score += 0.30
+                else:
+                    factors["near_structure"] = False
+    else:
+        factors["near_structure"] = False
+    
+    # Factor 3: Low ADX (confirming ranging, not trending)
+    if indicators.adx is not None:
+        if indicators.adx <= 25.0:  # Low ADX confirms ranging
+            factors["low_adx"] = True
+            score += 0.20
+        else:
+            factors["low_adx"] = False
+    else:
+        factors["low_adx"] = False
+    
+    # Factor 4: EMA convergence (tight spread)
+    if indicators.ema_9 and indicators.ema_50:
+        ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+        if ema_spread <= 0.01:  # Tight spread confirms ranging
+            factors["ema_convergence"] = True
+            score += 0.15
+        else:
+            factors["ema_convergence"] = False
+    else:
+        factors["ema_convergence"] = False
+    
+    # Minimum score threshold for ranging regime
+    min_score = 0.65
+    passed = score >= min_score
+    
+    reason = (
+        f"Ranging alpha passed: score {score:.2f} >= {min_score:.2f}"
+        if passed
+        else f"Ranging alpha failed: score {score:.2f} < {min_score:.2f}"
+    )
+    
+    return RegimeAlphaResult(
+        passed=passed,
+        reason=reason,
+        alpha_score=score,
+        confirmation_factors=factors,
+    )
+
+
+def check_volatile_alpha(
+    indicators: IndicatorValues,
+    direction: str,
+    price_history: Optional[np.ndarray] = None,
+    breakout_condition: bool = False,
+    directional_momentum: bool = False,
+) -> RegimeAlphaResult:
+    """
+    Check volatile regime alpha confirmation.
+    
+    Volatile model requirements:
+    - Breakout and momentum agreement required
+    - No countertrend entries in high-vol regime unless special override passes
+    - Invalidation on failed breakout return inside range
+    
+    Args:
+        indicators: IndicatorValues with technical indicators
+        direction: 'long' or 'short'
+        price_history: Price history for structure analysis
+        breakout_condition: Whether breakout condition is met
+        directional_momentum: Whether directional momentum agrees
+    
+    Returns:
+        RegimeAlphaResult with confirmation status
+    """
+    factors = {}
+    score = 0.0
+    
+    # Factor 1: Breakout condition (mandatory for volatile regime)
+    if breakout_condition:
+        factors["breakout"] = True
+        score += 0.35
+    else:
+        factors["breakout"] = False
+    
+    # Factor 2: Directional momentum agreement
+    if directional_momentum:
+        factors["momentum_agreement"] = True
+        score += 0.30
+    else:
+        factors["momentum_agreement"] = False
+    
+    # Factor 3: High ADX (confirming strong trend/volatility)
+    if indicators.adx is not None:
+        if indicators.adx >= 25.0:  # High ADX confirms volatility
+            factors["high_adx"] = True
+            score += 0.20
+        else:
+            factors["high_adx"] = False
+    else:
+        factors["high_adx"] = False
+    
+    # Factor 4: Wide EMA spread (confirming volatility)
+    if indicators.ema_9 and indicators.ema_50:
+        ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+        if ema_spread >= 0.01:  # Wide spread confirms volatility
+            factors["wide_ema_spread"] = True
+            score += 0.15
+        else:
+            factors["wide_ema_spread"] = False
+    else:
+        factors["wide_ema_spread"] = False
+    
+    # Minimum score threshold for volatile regime
+    min_score = 0.70
+    passed = score >= min_score
+    
+    reason = (
+        f"Volatile alpha passed: score {score:.2f} >= {min_score:.2f}"
+        if passed
+        else f"Volatile alpha failed: score {score:.2f} < {min_score:.2f}"
+    )
+    
+    return RegimeAlphaResult(
+        passed=passed,
+        reason=reason,
+        alpha_score=score,
+        confirmation_factors=factors,
+    )
+
+
+def check_quiet_alpha(
+    indicators: IndicatorValues,
+    direction: str,
+    price_history: Optional[np.ndarray] = None,
+) -> RegimeAlphaResult:
+    """
+    Check quiet regime alpha confirmation.
+    
+    Quiet model requirements:
+    - Selective low-frequency entries only
+    - Stricter ambiguity filter to avoid noise trading
+    
+    Args:
+        indicators: IndicatorValues with technical indicators
+        direction: 'long' or 'short'
+        price_history: Price history for structure analysis
+    
+    Returns:
+        RegimeAlphaResult with confirmation status
+    """
+    factors = {}
+    score = 0.0
+    
+    # Factor 1: Moderate trend direction (quiet but directional)
+    if indicators.trend:
+        if (direction == "long" and indicators.trend == "uptrend") or \
+           (direction == "short" and indicators.trend == "downtrend"):
+            factors["trend_direction"] = True
+            score += 0.30
+        else:
+            factors["trend_direction"] = False
+    else:
+        factors["trend_direction"] = False
+    
+    # Factor 2: Moderate ADX (not too strong, not too weak)
+    if indicators.adx is not None:
+        if 15.0 <= indicators.adx <= 25.0:  # Moderate ADX
+            factors["moderate_adx"] = True
+            score += 0.25
+        else:
+            factors["moderate_adx"] = False
+    else:
+        factors["moderate_adx"] = False
+    
+    # Factor 3: RSI not extreme (avoid mean reversion in quiet regime)
+    if indicators.rsi is not None:
+        if 40.0 <= indicators.rsi <= 60.0:  # Neutral RSI
+            factors["neutral_rsi"] = True
+            score += 0.25
+        else:
+            factors["neutral_rsi"] = False
+    else:
+        factors["neutral_rsi"] = False
+    
+    # Factor 4: Tight EMA spread (confirming quiet conditions)
+    if indicators.ema_9 and indicators.ema_50:
+        ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+        if ema_spread <= 0.008:  # Tight spread
+            factors["tight_ema_spread"] = True
+            score += 0.20
+        else:
+            factors["tight_ema_spread"] = False
+    else:
+        factors["tight_ema_spread"] = False
+    
+    # Minimum score threshold for quiet regime
+    min_score = 0.60
+    passed = score >= min_score
+    
+    reason = (
+        f"Quiet alpha passed: score {score:.2f} >= {min_score:.2f}"
+        if passed
+        else f"Quiet alpha failed: score {score:.2f} < {min_score:.2f}"
+    )
+    
+    return RegimeAlphaResult(
+        passed=passed,
+        reason=reason,
+        alpha_score=score,
+        confirmation_factors=factors,
+    )
+
+
+def check_regime_alpha(
+    regime: MarketRegime,
+    indicators: IndicatorValues,
+    direction: str,
+    price_history: Optional[np.ndarray] = None,
+    breakout_condition: bool = False,
+    directional_momentum: bool = False,
+) -> RegimeAlphaResult:
+    """
+    Check regime-specific alpha confirmation (Layer B).
+    
+    Routes to the appropriate regime-specific alpha check based on the current regime.
+    
+    Args:
+        regime: Current market regime
+        indicators: IndicatorValues with technical indicators
+        direction: 'long' or 'short'
+        price_history: Price history for structure analysis
+        breakout_condition: Whether breakout condition is met (for volatile regime)
+        directional_momentum: Whether directional momentum agrees (for volatile regime)
+    
+    Returns:
+        RegimeAlphaResult with confirmation status
+    """
+    regime_value = regime.value
+    
+    if regime_value in ("trending_up", "trending_down"):
+        return check_trending_alpha(indicators, direction, price_history)
+    elif regime_value == "ranging":
+        return check_ranging_alpha(indicators, direction, price_history)
+    elif regime_value == "volatile":
+        return check_volatile_alpha(
+            indicators, direction, price_history, breakout_condition, directional_momentum
+        )
+    elif regime_value == "quiet":
+        return check_quiet_alpha(indicators, direction, price_history)
+    else:  # unknown
+        # Conservative: require higher threshold for unknown regime
+        return RegimeAlphaResult(
+            passed=False,
+            reason="Unknown regime - alpha confirmation blocked",
+            alpha_score=0.0,
+            confirmation_factors={},
+        )

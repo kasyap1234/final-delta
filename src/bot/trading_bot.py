@@ -35,6 +35,7 @@ from ..indicators import (
     EnhancedSignalDetector,
     MarketRegimeDetector,
 )
+from ..indicators.market_regime import get_regime_profile
 
 # Import correlation
 from ..correlation import CorrelationCalculator, PriceHistory
@@ -213,6 +214,11 @@ class TradingBot:
         self.signals: List[Signal] = []
         self.position_peak_prices: Dict[str, float] = {}  # For trailing stops
         self._active_entry_signals: Dict[str, str] = {}  # symbol -> direction
+        self._entry_candle_count: Dict[str, int] = {}  # symbol -> processed candle count
+        self._last_trade_candle: Dict[str, int] = {}  # symbol -> last trade candle index
+        self._daily_trade_count: Dict[str, int] = {}  # symbol -> trades today
+        self._current_day: Optional[str] = None
+        self._last_processed_entry_candle: Dict[str, Any] = {}  # symbol -> candle timestamp
 
         # Circuit breakers
         self._circuit_breakers: Dict[str, CircuitBreaker] = {}
@@ -352,7 +358,7 @@ class TradingBot:
             # 8. Initialize execution components
             self.price_calculator = PriceCalculator()
             self.order_executor = OrderExecutor(self.exchange, self.price_calculator)
-            self.order_manager = OrderManager(self.order_executor, self.db_manager)
+            self.order_manager = OrderManager(self.order_executor)
             logger.info("Execution components initialized")
 
             # 9. Initialize hedge management
@@ -548,11 +554,32 @@ class TradingBot:
     async def _process_entry_signals(self):
         """Process entry signals for all symbols (matching backtest generate_signal flow)."""
         try:
+            timeframe = self.config.trading.timeframe
             for symbol in self.symbols:
                 if len(self.open_positions) >= self.config.trading.max_positions:
                     break
                 if any(p["symbol"] == symbol for p in self.open_positions.values()):
                     continue
+
+                ohlcv_objects = self.data_cache.get_ohlcv(symbol, timeframe)
+                if not ohlcv_objects:
+                    continue
+                last_candle_ts = getattr(ohlcv_objects[-1], "timestamp", None)
+                if last_candle_ts is None:
+                    continue
+                if self._last_processed_entry_candle.get(symbol) == last_candle_ts:
+                    continue
+                self._last_processed_entry_candle[symbol] = last_candle_ts
+                self._entry_candle_count[symbol] = self._entry_candle_count.get(symbol, 0) + 1
+
+                day_key = (
+                    last_candle_ts.strftime("%Y-%m-%d")
+                    if hasattr(last_candle_ts, "strftime")
+                    else str(last_candle_ts)[:10]
+                )
+                if day_key != self._current_day:
+                    self._current_day = day_key
+                    self._daily_trade_count.clear()
 
                 indicators = self.indicators.get(symbol)
                 if not indicators:
@@ -576,10 +603,30 @@ class TradingBot:
                     adx=indicators.adx,
                     atr=indicators.atr,
                 )
+                regime_profile = get_regime_profile(regime_metrics.regime.value)
 
                 should_trade, _ = self.regime_detector.should_trade_in_regime(regime_metrics.regime)
                 if not should_trade:
                     continue
+                if self.regime_detector.is_in_transition():
+                    continue
+
+                cooldown = int(regime_profile.get("cooldown_candles", 0))
+                last_trade = self._last_trade_candle.get(symbol, -cooldown - 1)
+                candle_count = self._entry_candle_count[symbol]
+                if candle_count - last_trade < cooldown:
+                    continue
+
+                max_daily = int(regime_profile.get("max_trades_per_day", 0))
+                if self._daily_trade_count.get(symbol, 0) >= max_daily:
+                    continue
+
+                current_volume = getattr(ohlcv_objects[-1], "volume", None)
+                avg_volume = None
+                if price_arrays and "volumes" in price_arrays:
+                    volumes = price_arrays["volumes"]
+                    if len(volumes) >= 20:
+                        avg_volume = float(np.mean(volumes[-20:]))
 
                 signal = self.signal_detector.check_entry_signal(
                     symbol=symbol,
@@ -587,6 +634,9 @@ class TradingBot:
                     current_price=current_price,
                     price_history=price_history,
                     regime_metrics=regime_metrics,
+                    current_volume=current_volume,
+                    avg_volume=avg_volume,
+                    regime_profile=regime_profile,
                 )
 
                 if signal.signal == SignalType.NONE:
@@ -596,7 +646,7 @@ class TradingBot:
                 regime_conf_scale = min(1.0, max(0.5, regime_metrics.confidence / 0.60))
                 adjusted_strength *= regime_conf_scale
 
-                min_strength = getattr(self.config.strategy, 'min_signal_confidence', 0.30)
+                min_strength = float(regime_profile.get("signal_threshold", getattr(self.config.strategy, "min_signal_confidence", 0.30)))
                 if adjusted_strength < min_strength:
                     continue
 
@@ -630,6 +680,8 @@ class TradingBot:
                     self._log_signal(signal)
 
                 await self._execute_entry(signal, indicators, adjusted_strength, regime_metrics)
+                self._last_trade_candle[symbol] = candle_count
+                self._daily_trade_count[symbol] = self._daily_trade_count.get(symbol, 0) + 1
 
         except Exception as e:
             logger.error(f"Error processing entry signals: {e}")
@@ -673,6 +725,21 @@ class TradingBot:
             return float(indicators.atr / reference_price)
 
         return None
+
+    def _volatility_risk_modifier(self, atr_percent: Optional[float]) -> float:
+        """Scale risk down as volatility approaches entry cut-off."""
+        if atr_percent is None:
+            return 1.0
+        limit = max(1e-6, float(getattr(self.config.strategy, "max_atr_percent_for_entry", 0.04)))
+        if atr_percent >= limit:
+            return 0.0
+        if atr_percent >= limit * 0.90:
+            return 0.45
+        if atr_percent >= limit * 0.75:
+            return 0.65
+        if atr_percent >= limit * 0.60:
+            return 0.80
+        return 1.0
 
     def calculate_dynamic_atr_multiplier(self, indicators: IndicatorValues) -> float:
         """
@@ -777,6 +844,52 @@ class TradingBot:
         else:
             return 0.25  # 25% position (minimum)
 
+    @staticmethod
+    def _config_value(value: Any, default: Any) -> Any:
+        """Return enum value (if present) or raw value with fallback default."""
+        if value is None:
+            return default
+        return value.value if hasattr(value, "value") else value
+
+    def _get_entry_execution_settings(self) -> Dict[str, Any]:
+        """Build entry execution settings from config with safe defaults."""
+        order_cfg = getattr(self.config, "order", None)
+
+        order_type = str(
+            self._config_value(getattr(order_cfg, "order_type", None), "limit")
+        ).lower()
+        if order_type not in {"limit", "market"}:
+            order_type = "limit"
+
+        fallback_type = str(
+            self._config_value(getattr(order_cfg, "fallback_order_type", None), "market")
+        ).lower()
+        if fallback_type not in {"limit", "market"}:
+            fallback_type = "market"
+
+        mode = str(getattr(order_cfg, "entry_execution_mode", "maker_then_taker")).lower()
+        if mode not in {"maker_only", "maker_then_taker", "taker_only"}:
+            mode = "maker_then_taker"
+
+        return {
+            "mode": mode,
+            "order_type": order_type,
+            "post_only": bool(getattr(order_cfg, "post_only", order_type == "limit")),
+            "price_offset_percent": float(getattr(order_cfg, "price_offset_percent", 0.01)),
+            "time_in_force": str(getattr(order_cfg, "time_in_force", "GTC")),
+            "entry_timeout_seconds": float(getattr(order_cfg, "entry_timeout_seconds", 45)),
+            "enable_taker_fallback": bool(getattr(order_cfg, "enable_taker_fallback", True)),
+            "fallback_order_type": fallback_type,
+            "fallback_time_in_force": str(getattr(order_cfg, "fallback_time_in_force", "IOC")),
+        }
+
+    def _build_entry_limit_price(self, side: str, decision_price: float, offset_percent: float) -> float:
+        """Build a passive limit price around decision price."""
+        offset = max(0.0, float(offset_percent)) / 100.0
+        if side == "buy":
+            return decision_price * (1.0 - offset)
+        return decision_price * (1.0 + offset)
+
     async def _execute_entry(
         self, signal: Signal, indicators: IndicatorValues,
         adjusted_strength: float = None, regime_metrics=None,
@@ -792,7 +905,12 @@ class TradingBot:
             long_signals = (SignalType.BUY, SignalType.STRONG_BUY, SignalType.MEAN_REVERSION_LONG)
             side = "long" if signal.signal in long_signals else "short"
 
-            atr_multiplier = self.calculate_dynamic_atr_multiplier(indicators)
+            regime_value = "unknown"
+            if regime_metrics and getattr(regime_metrics, "regime", None) is not None:
+                regime = regime_metrics.regime
+                regime_value = regime.value if hasattr(regime, "value") else str(regime)
+            regime_profile = get_regime_profile(regime_value)
+            atr_multiplier = float(regime_profile.get("atr_multiplier", self.config.strategy.atr_multiplier))
 
             stop_loss = self.signal_detector.get_stop_loss_price(
                 indicators=indicators,
@@ -801,37 +919,28 @@ class TradingBot:
                 multiplier=atr_multiplier,
             )
 
-            adaptive_rr = self.calculate_adaptive_rr_ratio(indicators)
-
-            take_profit = self.signal_detector.get_take_profit_price(
-                indicators=indicators,
-                entry_price=current_price,
-                position_type=side,
-                risk_reward_ratio=adaptive_rr,
-            )
-
-            regime_risk_mult = 1.0
-            if regime_metrics:
-                regime_val = (
-                    regime_metrics.regime.value
-                    if hasattr(regime_metrics.regime, 'value')
-                    else str(regime_metrics.regime)
+            rr_ratio = float(regime_profile.get("rr_ratio", self.config.risk_management.take_profit_r_ratio))
+            if rr_ratio == 0.0:
+                atr = indicators.atr if indicators.atr else current_price * 0.02
+                if side == "long":
+                    take_profit = current_price + atr * 20.0
+                else:
+                    take_profit = current_price - atr * 20.0
+            else:
+                take_profit = self.signal_detector.get_take_profit_price(
+                    indicators=indicators,
+                    entry_price=current_price,
+                    position_type=side,
+                    risk_reward_ratio=rr_ratio,
                 )
-                risk_multipliers = {
-                    'trending_up': 1.5,
-                    'trending_down': 1.5,
-                    'ranging': 0.8,
-                    'volatile': 0.5,
-                    'quiet': 0.7,
-                    'unknown': 0.5,
-                }
-                regime_risk_mult = risk_multipliers.get(regime_val, 1.0)
-                regime_risk_mult = 1.0 + (regime_risk_mult - 1.0) * min(1.0, regime_metrics.confidence / 0.7)
 
             base_risk = self.config.risk_management.max_risk_per_trade_percent
-            adjusted_risk = base_risk * regime_risk_mult
-
-            regime_multiplier = self._calculate_regime_multiplier(indicators)
+            adjusted_risk = base_risk * float(regime_profile.get("position_size_mod", 1.0))
+            atr_percent = self._calculate_atr_percent(indicators, symbol=symbol)
+            adjusted_risk *= self._volatility_risk_modifier(atr_percent)
+            if adjusted_risk <= 0.0:
+                logger.info(f"Skipping {symbol} entry: volatility risk modifier reduced risk to zero.")
+                return
 
             recent_performance = self._calculate_recent_performance()
             current_drawdown = self._calculate_current_drawdown()
@@ -855,12 +964,30 @@ class TradingBot:
                 )
                 return
 
-            adjusted_position_size = position_result.position_size * regime_multiplier
+            adjusted_position_size = position_result.position_size
+            current_positions = self._get_position_risks()
+            clamped_size = self.risk_manager.clamp_position_size_to_limits(
+                symbol=symbol,
+                requested_size=adjusted_position_size,
+                entry_price=current_price,
+                stop_loss_price=stop_loss,
+                current_positions=current_positions,
+                account_balance=account_balance,
+            )
+            if clamped_size <= 0.0:
+                logger.warning(f"Position size for {symbol} reduced to zero by risk clamps")
+                return
+            if clamped_size < adjusted_position_size:
+                logger.info(
+                    f"Clamped {symbol} size from {adjusted_position_size:.6f} to {clamped_size:.6f} "
+                    "to satisfy risk/exposure limits."
+                )
+            adjusted_position_size = clamped_size
 
             logger.info(
                 f"Position sizing for {symbol}: base={position_result.position_size:.4f}, "
                 f"adjusted_strength={adjusted_strength:.2f}, "
-                f"regime_mult={regime_multiplier:.2f}, final={adjusted_position_size:.4f}"
+                f"regime={regime_value}, final={adjusted_position_size:.4f}"
             )
 
             risk_check = self.risk_manager.can_open_position(
@@ -868,32 +995,94 @@ class TradingBot:
                 position_size=adjusted_position_size,
                 stop_loss_price=stop_loss,
                 entry_price=current_price,
-                current_positions=self._get_position_risks(),
+                current_positions=current_positions,
             )
 
             if not risk_check.can_trade:
                 logger.warning(f"Risk check failed for {symbol}: {risk_check.reason}")
                 return
 
+            order_side = "buy" if side == "long" else "sell"
+            exec_cfg = self._get_entry_execution_settings()
+
+            primary_order_type = exec_cfg["order_type"]
+            primary_post_only = exec_cfg["post_only"] and primary_order_type == "limit"
+            primary_tif = exec_cfg["time_in_force"]
+            primary_price = (
+                self._build_entry_limit_price(
+                    order_side,
+                    current_price,
+                    exec_cfg["price_offset_percent"],
+                )
+                if primary_order_type == "limit"
+                else None
+            )
+
+            if exec_cfg["mode"] == "taker_only":
+                primary_order_type = "market"
+                primary_post_only = False
+                primary_tif = "IOC"
+                primary_price = None
+
             order_result = await self.order_manager.place_entry_order(
                 symbol=symbol,
-                side="buy" if side == "long" else "sell",
+                side=order_side,
                 amount=adjusted_position_size,
-                price=current_price,
+                price=primary_price,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
+                order_type=primary_order_type,
+                post_only=primary_post_only,
+                time_in_force=primary_tif,
+                wait_for_fill=True,
+                timeout=exec_cfg["entry_timeout_seconds"],
+                require_filled=True,
+                cancel_unfilled=True,
             )
+
+            if (
+                not order_result.success
+                and exec_cfg["mode"] == "maker_then_taker"
+                and exec_cfg["enable_taker_fallback"]
+            ):
+                fallback_type = exec_cfg["fallback_order_type"]
+                fallback_price = current_price if fallback_type == "limit" else None
+                fallback_timeout = max(5.0, min(15.0, exec_cfg["entry_timeout_seconds"]))
+
+                logger.info(
+                    f"Escalating {symbol} entry to {fallback_type.upper()} after unfilled maker attempt."
+                )
+                order_result = await self.order_manager.place_entry_order(
+                    symbol=symbol,
+                    side=order_side,
+                    amount=adjusted_position_size,
+                    price=fallback_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    order_type=fallback_type,
+                    post_only=False,
+                    time_in_force=exec_cfg["fallback_time_in_force"],
+                    wait_for_fill=True,
+                    timeout=fallback_timeout,
+                    require_filled=True,
+                    cancel_unfilled=True,
+                )
 
             if order_result.success:
                 logger.info(f"Entry order placed for {symbol}: {order_result.order_id}")
+                executed_entry_price = (
+                    float(order_result.price)
+                    if order_result.price is not None and float(order_result.price) > 0
+                    else current_price
+                )
 
                 position_data = {
                     "id": order_result.order_id
                     or f"pos_{symbol}_{datetime.now().timestamp()}",
                     "symbol": symbol,
                     "side": side,
-                    "entry_price": current_price,
-                    "current_price": current_price,
+                    "entry_price": executed_entry_price,
+                    "current_price": executed_entry_price,
                     "size": adjusted_position_size,
                     "stop_loss": stop_loss,
                     "take_profit": take_profit,
@@ -902,7 +1091,7 @@ class TradingBot:
                     * (adjusted_risk / 100),
                     "signal_strength": adjusted_strength,
                     "atr_multiplier": atr_multiplier,
-                    "rr_ratio": adaptive_rr,
+                    "rr_ratio": rr_ratio,
                 }
 
                 self.open_positions[position_data["id"]] = position_data
@@ -912,7 +1101,7 @@ class TradingBot:
                     symbol=symbol,
                     side=side,
                     size=adjusted_position_size,
-                    entry_price=current_price,
+                    entry_price=executed_entry_price,
                     stop_loss=stop_loss,
                     take_profit=take_profit,
                     risk_amount=position_data["risk_amount"],
@@ -1125,7 +1314,7 @@ class TradingBot:
 
                 # Update portfolio tracker
                 self.portfolio_tracker.close_position(
-                    symbol=symbol, exit_price=current_price
+                    position_id=position_id, exit_price=current_price
                 )
 
                 # Close any associated hedges

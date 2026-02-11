@@ -96,22 +96,22 @@ class StrategySettings(BaseModel):
     )
     
     min_signal_confidence: float = Field(
-        default=0.35, ge=0, le=1.0,
+        default=0.40, ge=0, le=1.0,
         description="Minimum signal confidence for entry"
     )
     
     # Regime filter parameters (matching backtest)
     min_adx_for_entry: float = Field(
-        default=14.0, ge=0,
+        default=18.0, ge=0,
         description="Minimum ADX value for entry signals"
     )
     min_ema_spread_for_entry: float = Field(
-        default=0.003, ge=0,
-        description="Minimum EMA spread (as decimal) for entry signals (0.003 = 0.3%)"
+        default=0.004, ge=0,
+        description="Minimum EMA spread (as decimal) for entry signals (0.004 = 0.4%)"
     )
     max_atr_percent_for_entry: float = Field(
-        default=0.05, ge=0,
-        description="Maximum ATR as percent of price for entry signals (0.05 = 5%)"
+        default=0.04, ge=0,
+        description="Maximum ATR as percent of price for entry signals (0.04 = 4%)"
     )
     
     # Signal strength position sizing parameters (matching backtest)
@@ -124,8 +124,12 @@ class StrategySettings(BaseModel):
         description="Signal strength threshold for full position size"
     )
     weak_signal_threshold: float = Field(
-        default=0.3, ge=0, le=1.0,
+        default=0.35, ge=0, le=1.0,
         description="Signal strength threshold for minimum position size"
+    )
+    atr_percent_lookback: int = Field(
+        default=3, ge=1,
+        description="Lookback candles for ATR percent smoothing"
     )
     
     # Dynamic parameter adjustment (matching backtest)
@@ -254,6 +258,34 @@ class OrderSettings(BaseModel):
     price_offset_percent: float = Field(
         default=0.01, ge=0, le=1.0,
         description="Price offset from market price in percent"
+    )
+    time_in_force: str = Field(
+        default="GTC",
+        description="Default time-in-force for entry limit orders"
+    )
+    entry_execution_mode: str = Field(
+        default="maker_then_taker",
+        description="Entry execution mode: maker_only, maker_then_taker, taker_only"
+    )
+    entry_timeout_seconds: int = Field(
+        default=45, ge=1,
+        description="Seconds to wait for entry fill before escalation"
+    )
+    entry_timeout_candles: int = Field(
+        default=4, ge=1,
+        description="Fallback timeout in candles if wall-clock timeout is unavailable"
+    )
+    enable_taker_fallback: bool = Field(
+        default=True,
+        description="Escalate unfilled entry orders to taker execution"
+    )
+    fallback_order_type: OrderType = Field(
+        default=OrderType.MARKET,
+        description="Fallback order type for unfilled entries"
+    )
+    fallback_time_in_force: str = Field(
+        default="IOC",
+        description="Time-in-force for fallback entry orders"
     )
     retry_attempts: int = Field(
         default=3, ge=0,

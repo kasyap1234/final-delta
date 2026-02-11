@@ -285,9 +285,17 @@ class PortfolioTracker:
         """Calculate total account equity (balance + unrealized P&L)."""
         return self._account_balance + self.calculate_unrealized_pnl()
 
+    def get_total_value(self) -> float:
+        """Backward-compatible alias for total portfolio value."""
+        return self.get_equity()
+
     def get_account_balance(self) -> float:
         """Get current account balance."""
         return self._account_balance
+
+    def get_unrealized_pnl(self) -> float:
+        """Backward-compatible alias for unrealized P&L."""
+        return self.calculate_unrealized_pnl()
 
     def set_account_balance(self, balance: float) -> None:
         """Set account balance."""

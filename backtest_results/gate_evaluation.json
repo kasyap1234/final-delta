@@ -1,0 +1,131 @@
+{
+  "gates": {
+    "expectancy_payoff": {
+      "win_loss_ratio": {
+        "threshold": 1.8,
+        "actual": 0.3235707759940663,
+        "pass": false,
+        "description": "Average winner to average loser ratio at least 1.8"
+      },
+      "win_rate": {
+        "threshold": 0.4,
+        "actual": 0.3028,
+        "pass": false,
+        "description": "Win rate at least 40% for positive expectancy"
+      }
+    },
+    "performance_risk": {
+      "annual_return_positive": {
+        "threshold": "All years > 0%",
+        "actual": {
+          "2023": "-10.06%",
+          "2024": "-10.13%",
+          "2025": "-10.12%"
+        },
+        "pass": false,
+        "description": "Annual net return positive in each target year"
+      },
+      "per_year_sharpe": {
+        "threshold": 0.7,
+        "actual": {
+          "2023": -8.133942115755637,
+          "2024": -6.1498248878740425,
+          "2025": -5.530968148779617
+        },
+        "pass": false,
+        "description": "Per-year Sharpe at least 0.7"
+      },
+      "stitched_sharpe": {
+        "threshold": 1.1,
+        "actual": -6.604911717469766,
+        "pass": false,
+        "description": "Stitched Sharpe at least 1.1"
+      },
+      "per_year_max_dd": {
+        "threshold": 0.2,
+        "actual": {
+          "2023": 0.10147582557878317,
+          "2024": 0.10172553414561668,
+          "2025": 0.10124170028489014
+        },
+        "pass": true,
+        "description": "Per-year max drawdown at most 20 percent"
+      },
+      "stitched_max_dd": {
+        "threshold": 0.22,
+        "actual": 0.10148102000309667,
+        "pass": true,
+        "description": "Stitched max drawdown at most 22 percent"
+      }
+    },
+    "trade_quality": {
+      "trade_count_reduction": {
+        "threshold": 0.3,
+        "actual": 0.5102389078498294,
+        "pass": true,
+        "description": "Trade count reduced at least 30% vs baseline",
+        "baseline": 2344,
+        "current": 1148.0
+      },
+      "win_rate_improvement": {
+        "threshold": 0.05,
+        "actual": 0.09280000000000002,
+        "pass": true,
+        "description": "Win rate improved at least 5% vs baseline",
+        "baseline": 0.21,
+        "current": 0.3028
+      }
+    },
+    "benchmark_relative": {
+      "beats_benchmark_down_years": {
+        "threshold": "True for all down years",
+        "actual": {
+          "2025": true
+        },
+        "pass": true,
+        "description": "Strategy beats benchmark in down years"
+      },
+      "reasonable_drawdown": {
+        "threshold": 0.15,
+        "actual": 0.10148102000309667,
+        "pass": true,
+        "description": "Strategy max drawdown at most 15%"
+      }
+    },
+    "stress": {
+      "s1_pessimistic_positive": {
+        "threshold": "> 0%",
+        "actual": -0.10059070320274205,
+        "pass": false,
+        "description": "Pessimistic scenario: net return remains positive"
+      },
+      "s2_sensitivity_positive": {
+        "threshold": "> 0%",
+        "actual": -0.09900764270937706,
+        "pass": false,
+        "description": "Sensitivity scenario: net return remains positive"
+      },
+      "degradation_limit": {
+        "threshold": 0.05,
+        "actual": {
+          "pessimistic": 2.2049998712456165e-05,
+          "sensitivity": 0.0016051104920774412
+        },
+        "pass": true,
+        "description": "Adversarial degradation at most 5%"
+      },
+      "stress_max_dd": {
+        "threshold": 0.15,
+        "actual": 0.10105635396555088,
+        "pass": true,
+        "description": "Stress scenario max drawdown at most 15%"
+      }
+    }
+  },
+  "summary": {
+    "total_gates": 15,
+    "passed_gates": 8,
+    "pass_rate": 0.5333333333333333,
+    "verdict": "NO-GO"
+  }
+}

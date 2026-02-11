@@ -1,0 +1,54 @@
+[
+  {
+    "timestamp": "2025-01-03T22:00:00",
+    "symbol": "BTC_USDT",
+    "side": "sell",
+    "size": 0.00024603352731042335,
+    "price": 97932.98179364027,
+    "exit_price": 97932.98179364027,
+    "pnl": 0.19513561341526442,
+    "fees": 0.014456878170430069,
+    "reason": "trailing_stop",
+    "entry_price": 97139.85568782681,
+    "position_id": "BTC_USDT_1_1735909200"
+  },
+  {
+    "timestamp": "2025-01-18T22:30:00",
+    "symbol": "BTC_USDT",
+    "side": "sell",
+    "size": 0.0005839368759514941,
+    "price": 103175.01887782794,
+    "exit_price": 103175.01887782794,
+    "pnl": -1.0382914540594987,
+    "fees": 0.00932294599005916,
+    "reason": "stop_loss",
+    "entry_price": 104953.10739530281,
+    "position_id": "BTC_USDT_2_1737214200"
+  },
+  {
+    "timestamp": "2025-02-04T10:45:00",
+    "symbol": "BTC_USDT",
+    "side": "sell",
+    "size": 0.0001940123879012278,
+    "price": 98626.97742351037,
+    "exit_price": 98626.97742351037,
+    "pnl": -0.6715945213600013,
+    "fees": 0.011480913240849438,
+    "reason": "stop_loss",
+    "entry_price": 102088.58381176797,
+    "position_id": "BTC_USDT_3_1738623600"
+  },
+  {
+    "timestamp": "2025-03-15T14:00:00",
+    "symbol": "BTC_USDT",
+    "side": "sell",
+    "size": 0.0004621792214915646,
+    "price": 83546.21273253464,
+    "exit_price": 83546.21273253464,
+    "pnl": -0.715240425429947,
+    "fees": 0.007609404644323385,
+    "reason": "stop_loss",
+    "entry_price": 85093.75185193012,
+    "position_id": "BTC_USDT_4_1741978800"
+  }
+]

@@ -187,6 +187,150 @@ class OrderManager:
         }
         
         logger.info("OrderManager initialized")
+
+    async def place_entry_order(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        price: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        order_type: str = "limit",
+        post_only: bool = True,
+        time_in_force: Optional[str] = "GTC",
+        wait_for_fill: bool = False,
+        timeout: Optional[float] = None,
+        require_filled: bool = False,
+        cancel_unfilled: bool = False,
+    ) -> OrderResult:
+        """
+        Backward-compatible entry helper used by TradingBot.
+
+        Returns an OrderResult-like object for compatibility with existing call sites.
+        """
+        request = OrderRequest(
+            symbol=symbol,
+            side=side,
+            amount=amount,
+            price=price,
+            order_type=order_type,
+            post_only=post_only,
+            time_in_force=time_in_force,
+            metadata={
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+            },
+        )
+
+        tracked = await self.submit_order(
+            request,
+            wait_for_fill=wait_for_fill,
+            timeout=timeout,
+        )
+
+        # Optionally enforce execution certainty for entry flow.
+        if require_filled and tracked.state != OrderState.FILLED:
+            if cancel_unfilled and tracked.is_active:
+                await self.cancel_order(tracked.order_id, reason="entry_not_filled")
+                tracked = self.get_order(tracked.order_id) or tracked
+            return OrderResult(
+                success=False,
+                order_id=tracked.order_id,
+                symbol=symbol,
+                side=side,
+                order_type=order_type,
+                amount=amount,
+                price=price,
+                filled=tracked.filled,
+                remaining=tracked.remaining,
+                status=tracked.state.value,
+                error_message="Entry order not filled within required window",
+            )
+
+        if tracked.state in (OrderState.REJECTED, OrderState.ERROR):
+            return OrderResult(
+                success=False,
+                order_id=tracked.order_id,
+                symbol=symbol,
+                side=side,
+                order_type=order_type,
+                amount=amount,
+                price=price,
+                filled=tracked.filled,
+                remaining=tracked.remaining,
+                status=tracked.state.value,
+                error_message=tracked.error_message,
+            )
+
+        return OrderResult(
+            success=True,
+            order_id=tracked.order_id,
+            symbol=symbol,
+            side=side,
+            order_type=order_type,
+            amount=amount,
+            price=price,
+            filled=tracked.filled,
+            remaining=tracked.remaining,
+            status=tracked.state.value,
+        )
+
+    async def close_position(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        price: Optional[float] = None,
+        order_type: str = "market",
+        post_only: bool = False,
+        time_in_force: Optional[str] = "IOC",
+    ) -> OrderResult:
+        """
+        Backward-compatible close helper used by TradingBot.
+
+        Defaults to market/IOC to prioritize execution certainty for exits.
+        """
+        request = OrderRequest(
+            symbol=symbol,
+            side=side,
+            amount=amount,
+            price=price,
+            order_type=order_type,
+            post_only=post_only,
+            time_in_force=time_in_force,
+            metadata={"is_close": True},
+        )
+
+        tracked = await self.submit_order(request, wait_for_fill=False)
+
+        if tracked.state in (OrderState.REJECTED, OrderState.ERROR):
+            return OrderResult(
+                success=False,
+                order_id=tracked.order_id,
+                symbol=symbol,
+                side=side,
+                order_type=order_type,
+                amount=amount,
+                price=price,
+                filled=tracked.filled,
+                remaining=tracked.remaining,
+                status=tracked.state.value,
+                error_message=tracked.error_message,
+            )
+
+        return OrderResult(
+            success=True,
+            order_id=tracked.order_id,
+            symbol=symbol,
+            side=side,
+            order_type=order_type,
+            amount=amount,
+            price=price,
+            filled=tracked.filled,
+            remaining=tracked.remaining,
+            status=tracked.state.value,
+        )
     
     async def start(self) -> None:
         """Start the order manager background tasks."""

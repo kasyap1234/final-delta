@@ -136,29 +136,45 @@ class OrderBookSnapshot:
 @dataclass
 class OrderBookConfig:
     """Configuration for order book simulation."""
+
     # Depth levels to simulate
     depth_levels: int = 20
-    
+
     # Spread configuration
     min_spread_bps: float = 2.0  # Minimum spread in basis points
     max_spread_bps: float = 50.0  # Maximum spread in basis points
     volatility_spread_factor: float = 10.0  # Spread increases with volatility
-    
+
     # Volume configuration
     base_volume_at_best: float = 1.0  # Base volume at best price
     volume_decay_factor: float = 0.8  # Volume decay per level
     volume_concentration: float = 0.6  # % of volume at best 3 levels
-    
+
     # Imbalance configuration
     enable_imbalance: bool = True
     imbalance_update_prob: float = 0.3  # Probability of imbalance change per update
     max_imbalance: float = 0.7  # Maximum imbalance (-0.7 to 0.7)
-    
+
     # Price level configuration
     price_level_spacing_bps: float = 5.0  # Spacing between levels
-    
+
     # Fill simulation
     fill_price_impact_bps: float = 1.0  # Impact per 1% of level volume consumed
+
+    # Enhanced depth modeling
+    enable_regime_depth_adjustment: bool = True  # Adjust depth based on volatility regime
+    low_vol_depth_multiplier: float = 1.5  # More depth in low volatility
+    high_vol_depth_multiplier: float = 0.5  # Less depth in high volatility
+    high_volatility_threshold: float = 0.04  # 4% volatility threshold
+
+    # Liquidity crisis simulation
+    enable_liquidity_crises: bool = True  # Simulate occasional liquidity crises
+    crisis_probability: float = 0.01  # 1% chance per candle during high vol
+    crisis_depth_reduction: float = 0.3  # Reduce depth to 30% during crisis
+
+    # Volume distribution model
+    volume_distribution_model: str = "power_law"  # "exponential" or "power_law"
+    power_law_exponent: float = 1.5  # Steeper decay for power law
 
 
 class SimulatedOrderBook:
@@ -299,7 +315,45 @@ class SimulatedOrderBook:
         # Use normal distribution centered at 0
         imbalance = random.gauss(0, 0.3)
         return max(-self.config.max_imbalance, min(self.config.max_imbalance, imbalance))
-    
+
+    def _calculate_depth_multiplier(self) -> float:
+        """
+        Calculate depth multiplier based on current volatility regime.
+
+        Returns:
+            Multiplier to apply to base volume at each level
+        """
+        if not self.config.enable_regime_depth_adjustment:
+            return 1.0
+
+        volatility = self._current_volatility
+        high_threshold = self.config.high_volatility_threshold
+
+        if volatility >= high_threshold:
+            # High volatility regime - reduced depth (liquidity providers withdraw)
+            multiplier = self.config.high_vol_depth_multiplier
+
+            # Check for liquidity crisis during high volatility
+            if self.config.enable_liquidity_crises:
+                if random.random() < self.config.crisis_probability:
+                    multiplier *= self.config.crisis_depth_reduction
+                    logger.debug(
+                        f"Liquidity crisis simulated for {self.symbol}, "
+                        f"depth reduced to {multiplier:.2%}"
+                    )
+        elif volatility <= high_threshold * 0.25:
+            # Low volatility regime - increased depth (more liquidity)
+            multiplier = self.config.low_vol_depth_multiplier
+        else:
+            # Normal regime - interpolate between low and high
+            # Linear interpolation
+            ratio = (volatility - high_threshold * 0.25) / (high_threshold * 0.75)
+            multiplier = self.config.low_vol_depth_multiplier - ratio * (
+                self.config.low_vol_depth_multiplier - self.config.high_vol_depth_multiplier
+            )
+
+        return multiplier
+
     def _generate_side(
         self,
         best_price: float,
@@ -307,12 +361,24 @@ class SimulatedOrderBook:
         candle_volume: float,
         imbalance: float
     ) -> List[PriceLevel]:
-        """Generate price levels for one side of the book."""
+        """
+        Generate price levels for one side of the order book.
+
+        Uses configurable volume distribution model:
+        - exponential: Classic exponential decay (v * decay^i)
+        - power_law: Steeper decay for more realistic deep book (v / (i+1)^exp)
+
+        Also applies regime-based depth adjustments.
+        """
         levels = []
-        
+
         # Adjust base volume by imbalance
         base_volume = self.config.base_volume_at_best * (1 + imbalance)
-        
+
+        # Apply regime-based depth multiplier
+        depth_multiplier = self._calculate_depth_multiplier()
+        base_volume *= depth_multiplier
+
         # Generate levels
         for i in range(self.config.depth_levels):
             # Price for this level
@@ -320,22 +386,29 @@ class SimulatedOrderBook:
                 price = best_price * (1 - i * self.config.price_level_spacing_bps / 10000)
             else:
                 price = best_price * (1 + i * self.config.price_level_spacing_bps / 10000)
-            
-            # Volume at this level (decays with depth)
-            volume = base_volume * (self.config.volume_decay_factor ** i)
-            
-            # Add some randomness
-            volume *= random.uniform(0.8, 1.2)
-            
-            # Scale by candle volume
-            volume *= candle_volume * 0.01  # 1% of candle volume per level
-            
+
+            # Volume at this level based on distribution model
+            if self.config.volume_distribution_model == "power_law":
+                # Power law decay: steeper, more realistic for deep liquidity
+                volume = base_volume / ((i + 1) ** self.config.power_law_exponent)
+            else:
+                # Exponential decay (original model)
+                volume = base_volume * (self.config.volume_decay_factor ** i)
+
+            # Add some randomness (less random at best levels, more at deeper levels)
+            randomness_factor = 0.8 + (i / self.config.depth_levels) * 0.4
+            volume *= random.uniform(0.8, randomness_factor)
+
+            # Scale by candle volume (less scaling at deeper levels)
+            volume_scale = 0.01 * (1 - i / self.config.depth_levels * 0.5)
+            volume *= candle_volume * volume_scale
+
             levels.append(PriceLevel(
                 price=price,
-                volume=volume,
-                order_count=random.randint(1, 10)
+                volume=max(0.001, volume),  # Ensure positive volume
+                order_count=random.randint(1, max(1, 10 - i))  # Fewer orders at deeper levels
             ))
-        
+
         return levels
     
     def calculate_fill_price(
@@ -375,6 +448,8 @@ class SimulatedOrderBook:
         for level in levels:
             if remaining <= 0:
                 break
+            if level.volume <= 0:
+                continue
             
             # Calculate how much can be filled at this level
             available = level.volume

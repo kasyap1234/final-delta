@@ -197,6 +197,82 @@ class RiskManager:
             remaining_capacity=max_risk - new_total_risk,
         )
 
+    def clamp_position_size_to_limits(
+        self,
+        symbol: str,
+        requested_size: float,
+        entry_price: float,
+        stop_loss_price: float,
+        current_positions: List[Dict[str, Any]],
+        account_balance: Optional[float] = None,
+    ) -> float:
+        """
+        Clamp requested size to fit exposure/risk/correlation limits.
+
+        This keeps strategy logic intact while avoiding avoidable hard rejections
+        when the requested size is above portfolio constraints.
+        """
+        balance = (
+            account_balance if account_balance is not None else self._account_balance
+        )
+        if (
+            requested_size <= 0
+            or entry_price <= 0
+            or balance <= 0
+            or len(current_positions) >= self.max_positions
+        ):
+            return 0.0
+
+        # Exposure limit clamp
+        current_exposure = self.calculate_total_exposure(current_positions)
+        max_exposure = balance * (self.max_total_exposure_percent / 100)
+        remaining_exposure = max(0.0, max_exposure - current_exposure)
+        max_size_by_exposure = remaining_exposure / entry_price if entry_price > 0 else 0.0
+
+        # Risk limit clamp
+        stop_loss_distance = abs(entry_price - stop_loss_price)
+        if stop_loss_distance > 0:
+            current_risk = self.calculate_total_risk(current_positions)
+            max_risk = balance * (self.max_total_risk_percent / 100)
+            remaining_risk = max(0.0, max_risk - current_risk)
+            max_size_by_risk = remaining_risk / stop_loss_distance
+        else:
+            max_size_by_risk = requested_size
+
+        # Correlation limit clamp (if symbol belongs to a group)
+        max_size_by_correlation = requested_size
+        symbol_group = None
+        for group_name, symbols in self.correlation_groups.items():
+            if symbol in symbols:
+                symbol_group = group_name
+                break
+
+        if symbol_group is not None:
+            group_exposure = 0.0
+            group_symbols = self.correlation_groups.get(symbol_group, [])
+            for pos in current_positions:
+                pos_symbol = pos.get("symbol", "")
+                if pos_symbol in group_symbols:
+                    size = abs(pos.get("size", 0.0))
+                    price = pos.get("current_price", pos.get("entry_price", 0.0))
+                    group_exposure += size * price
+
+            max_group_exposure = balance * (self.max_correlated_exposure / 100)
+            remaining_group_exposure = max(0.0, max_group_exposure - group_exposure)
+            max_size_by_correlation = (
+                remaining_group_exposure / entry_price if entry_price > 0 else 0.0
+            )
+
+        max_allowed = min(
+            requested_size,
+            max_size_by_exposure,
+            max_size_by_risk,
+            max_size_by_correlation,
+        )
+        # Keep a small numerical buffer so a clamped size will pass strict
+        # inequality checks in subsequent can_open_position validation.
+        return max(0.0, max_allowed * 0.995)
+
     def calculate_total_exposure(self, positions: List[Dict[str, Any]]) -> float:
         """Calculate total portfolio exposure."""
         total = 0.0

@@ -94,6 +94,7 @@ class ReportGenerator:
             HTML content string
         """
         performance = results.get('performance', {})
+        win_rate = self._normalize_rate(results.get('win_rate', 0))
         
         html = f"""
 <!DOCTYPE html>
@@ -213,7 +214,7 @@ class ReportGenerator:
             </div>
             <div class="metric">
                 <div class="metric-label">Win Rate</div>
-                <div class="metric-value">{results.get('win_rate', 0):.2%}</div>
+                <div class="metric-value">{win_rate:.2%}</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Total Trades</div>
@@ -278,7 +279,7 @@ class ReportGenerator:
                 </tr>
                 <tr>
                     <td>Win Rate</td>
-                    <td>{results.get('win_rate', 0):.2%}</td>
+                    <td>{win_rate:.2%}</td>
                 </tr>
                 <tr>
                     <td>Total Fees</td>
@@ -329,7 +330,7 @@ class ReportGenerator:
         lines.append(f"Final Equity: ${results.get('final_equity', 0):.2f}")
         lines.append(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
         lines.append(f"Max Drawdown: {results.get('max_drawdown', 0):.2%}")
-        lines.append(f"Win Rate: {results.get('win_rate', 0):.2%}")
+        lines.append(f"Win Rate: {self._normalize_rate(results.get('win_rate', 0)):.2%}")
         lines.append(f"Total Trades: {results.get('total_trades', 0)}")
         lines.append(f"Total Fees: ${results.get('total_fees', 0):.2f}")
         lines.append("")
@@ -354,7 +355,7 @@ class ReportGenerator:
         lines.append("TRADE METRICS")
         lines.append("-" * 70)
         lines.append(f"Total Trades: {results.get('total_trades', 0)}")
-        lines.append(f"Win Rate: {results.get('win_rate', 0):.2%}")
+        lines.append(f"Win Rate: {self._normalize_rate(results.get('win_rate', 0)):.2%}")
         lines.append(f"Total Fees: ${results.get('total_fees', 0):.2f}")
         lines.append("")
         
@@ -385,3 +386,13 @@ class ReportGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Output directory changed to: {self.output_dir}")
+
+    @staticmethod
+    def _normalize_rate(value: Any) -> float:
+        """Normalize a rate to decimal form (0-1)."""
+        try:
+            rate = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+        return rate / 100.0 if rate > 1.0 else max(rate, 0.0)

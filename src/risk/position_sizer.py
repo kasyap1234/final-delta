@@ -650,14 +650,21 @@ class PositionSizer:
         return modifier_map.get(regime_value, 1.0)
 
     def _calculate_drawdown_factor(self, current_drawdown: float) -> float:
-        """Calculate position size factor based on current drawdown."""
-        if current_drawdown > 0.35:  # 35% drawdown
+        """Calculate position size factor based on current drawdown.
+        
+        Uses stricter drawdown ladder for all-weather strategy:
+        - 5% drawdown: 0.75x
+        - 8% drawdown: 0.50x
+        - 10% drawdown: 0.25x
+        - 12% drawdown: 0.0x (stop trading)
+        """
+        if current_drawdown > 0.12:  # 12% drawdown
             return 0.0  # Stop trading
-        elif current_drawdown > 0.25:  # 25% drawdown
+        elif current_drawdown > 0.10:  # 10% drawdown
             return 0.25
-        elif current_drawdown > 0.20:  # 20% drawdown
+        elif current_drawdown > 0.08:  # 8% drawdown
             return 0.50
-        elif current_drawdown > 0.15:  # 15% drawdown
+        elif current_drawdown > 0.05:  # 5% drawdown
             return 0.75
         return 1.0
 
