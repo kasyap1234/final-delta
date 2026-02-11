@@ -64,9 +64,24 @@ strategy:
   # ATR (Average True Range) settings for stop-loss calculation
   atr_period: 14
   atr_multiplier: 2.0         # Multiplier for ATR-based stop-loss
+
+  # Volatility filter to avoid extreme regime entries
+  # 0.04 means skip entries when ATR exceeds 4.0% of price
+  max_atr_percent_for_entry: 0.04
+  atr_percent_lookback: 3
+  min_signal_confidence: 0.40
+  min_adx_for_entry: 18.0
+  min_ema_spread_for_entry: 0.004
   
   # Pivot/Resistance detection settings
   pivot_lookback: 10          # Lookback period for pivot detection
+
+  # Regime detector settings (must match backtest for strategy parity)
+  adx_strong_trend: 25.0      # ADX threshold for strong trend
+  adx_weak_trend: 20.0        # ADX threshold for weak trend
+  bb_squeeze_threshold: 0.06  # Bollinger Band squeeze threshold
+  bb_volatile_threshold: 0.10 # Bollinger Band volatile threshold
+  min_confidence: 0.6         # Minimum regime confidence
 
 # =============================================================================
 # RISK MANAGEMENT SETTINGS
@@ -75,19 +90,23 @@ risk_management:
   # Total trading capital
   # Used for position sizing calculations
   account_balance: 10000.0
-  
+
   # Risk per trade as percentage of account balance
   # Recommended range: 1.0% - 2.0%
   # This means you risk losing this percentage if stop-loss is hit
   risk_per_trade_percent: 1.0
-  
+
   # Maximum allowed risk per trade percentage
   # Hard limit that cannot be exceeded
   max_risk_per_trade_percent: 2.0
-  
+
   # Risk:Reward ratio for take profit calculation
   # 2.0 means 2:1 risk:reward (take profit is 2x the stop-loss distance)
   take_profit_r_ratio: 2.0
+
+  # Maximum leverage allowed
+  # 5.0 means up to 5x leverage can be used
+  max_leverage: 5.0
 
 # =============================================================================
 # HEDGE CONFIGURATION
@@ -125,6 +144,26 @@ execution:
   
   # Delay between retries in seconds
   retry_delay: 1.0
+
+# =============================================================================
+# ORDER EXECUTION POLICY
+# =============================================================================
+order:
+  # Default entry order style
+  order_type: "limit"
+  post_only: true
+  time_in_force: "GTC"
+
+  # Passive quote offset from decision price (percent)
+  price_offset_percent: 0.01
+
+  # Entry escalation policy: maker_only | maker_then_taker | taker_only
+  entry_execution_mode: "maker_then_taker"
+  entry_timeout_seconds: 45
+  entry_timeout_candles: 4
+  enable_taker_fallback: true
+  fallback_order_type: "market"
+  fallback_time_in_force: "IOC"
 
 # =============================================================================
 # WEBSOCKET SETTINGS

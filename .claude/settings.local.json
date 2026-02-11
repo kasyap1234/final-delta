@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(git -C /Users/kasyap/Documents/final-delta log --oneline --all -20)",
+      "Bash(.venv/bin/python:*)"
+    ]
+  }
+}

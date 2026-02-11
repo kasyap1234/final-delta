@@ -156,9 +156,9 @@ class SignalDetector:
             'near_support': False
         }
         
-        # Combine signals
+        # Combine signals with indicator data for enhanced strength calculation
         final_signal = self._combine_signals(
-            signals, symbol, current_price, details
+            signals, symbol, current_price, details, indicators
         )
         
         logger.debug(f"Signal for {symbol} at {current_price}: {final_signal.signal.value} "
@@ -231,8 +231,9 @@ class SignalDetector:
         if rsi <= self.rsi_oversold:
             # Oversold - potential buy signal
             divergence = None
-            if price_history is not None:
-                rsi_history = np.array([indicators.rsi])  # Simplified
+            if price_history is not None and len(price_history) >= 28:
+                from .technical_indicators import calculate_rsi
+                rsi_history = calculate_rsi(price_history, period=14)
                 divergence = detect_rsi_divergence(price_history, rsi_history)
             
             if divergence == 'bullish':
@@ -243,8 +244,9 @@ class SignalDetector:
         elif rsi >= self.rsi_overbought:
             # Overbought - potential sell signal
             divergence = None
-            if price_history is not None:
-                rsi_history = np.array([indicators.rsi])  # Simplified
+            if price_history is not None and len(price_history) >= 28:
+                from .technical_indicators import calculate_rsi
+                rsi_history = calculate_rsi(price_history, period=14)
                 divergence = detect_rsi_divergence(price_history, rsi_history)
             
             if divergence == 'bearish':
@@ -296,12 +298,96 @@ class SignalDetector:
         
         return (SignalType.NONE, 0.0, "No pivot point signal")
     
+    def _calculate_signal_strength(
+        self,
+        base_strength: float,
+        indicators: IndicatorValues,
+        signal_direction: str  # 'buy' or 'sell'
+    ) -> float:
+        """
+        Calculate enhanced signal strength based on multiple factors.
+        
+        Factors:
+        - ADX: Higher ADX = stronger trend = higher strength
+        - EMA spread: Wider EMA spread = stronger trend = higher strength
+        - RSI confirmation: RSI aligned with signal = higher strength
+        
+        Args:
+            base_strength: Base signal strength from component signals
+            indicators: Current indicator values
+            signal_direction: Direction of signal ('buy' or 'sell')
+            
+        Returns:
+            Enhanced signal strength (0.0 to 1.0)
+        """
+        strength = base_strength
+        factors = []
+        
+        # ADX factor (0.0 to 0.2 boost)
+        if indicators.adx is not None:
+            if indicators.adx >= 40:
+                adx_factor = 0.2  # Strong trend
+            elif indicators.adx >= 30:
+                adx_factor = 0.15  # Good trend
+            elif indicators.adx >= 20:
+                adx_factor = 0.1  # Moderate trend
+            elif indicators.adx >= 10:
+                adx_factor = 0.05  # Weak trend
+            else:
+                adx_factor = 0.0  # No trend
+            factors.append(adx_factor)
+        
+        # EMA spread factor (0.0 to 0.15 boost)
+        if indicators.ema_9 and indicators.ema_50 and indicators.ema_50 > 0:
+            ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+            if ema_spread >= 0.05:  # 5% spread
+                spread_factor = 0.15
+            elif ema_spread >= 0.03:  # 3% spread
+                spread_factor = 0.1
+            elif ema_spread >= 0.015:  # 1.5% spread
+                spread_factor = 0.05
+            else:
+                spread_factor = 0.0
+            factors.append(spread_factor)
+        
+        # RSI confirmation factor (0.0 to 0.15 boost)
+        if indicators.rsi is not None:
+            if signal_direction == 'buy':
+                # For buy signals: RSI < 40 is good confirmation
+                if indicators.rsi <= 30:
+                    rsi_factor = 0.15  # Strong oversold
+                elif indicators.rsi <= 40:
+                    rsi_factor = 0.1  # Good confirmation
+                elif indicators.rsi <= 50:
+                    rsi_factor = 0.05  # Mild confirmation
+                else:
+                    rsi_factor = 0.0  # No confirmation
+            else:  # sell
+                # For sell signals: RSI > 60 is good confirmation
+                if indicators.rsi >= 70:
+                    rsi_factor = 0.15  # Strong overbought
+                elif indicators.rsi >= 60:
+                    rsi_factor = 0.1  # Good confirmation
+                elif indicators.rsi >= 50:
+                    rsi_factor = 0.05  # Mild confirmation
+                else:
+                    rsi_factor = 0.0  # No confirmation
+            factors.append(rsi_factor)
+        
+        # Add average of factors to base strength
+        if factors:
+            avg_factor = sum(factors) / len(factors)
+            strength = min(base_strength + avg_factor, 1.0)
+        
+        return strength
+    
     def _combine_signals(
         self,
         signals: List[Tuple[SignalType, float, str]],
         symbol: str,
         price: float,
-        details: Dict[str, Any]
+        details: Dict[str, Any],
+        indicators: IndicatorValues = None
     ) -> Signal:
         """
         Combine multiple indicator signals into final signal.
@@ -311,6 +397,7 @@ class SignalDetector:
             symbol: Trading pair symbol
             price: Current price
             details: Signal details dictionary
+            indicators: Current indicator values for strength calculation
             
         Returns:
             Combined Signal object
@@ -318,36 +405,74 @@ class SignalDetector:
         # Separate buy and sell signals
         buy_signals = [s for s in signals if s[0] in (SignalType.BUY, SignalType.STRONG_BUY)]
         sell_signals = [s for s in signals if s[0] in (SignalType.SELL, SignalType.STRONG_SELL)]
-        
+
         # Calculate total strength for each side
         buy_strength = sum(s[1] for s in buy_signals)
         sell_strength = sum(s[1] for s in sell_signals)
-        
+
+        # Net directional margin: require clear conviction in one direction
+        # This prevents conflicting signals (e.g. buy=0.3 + sell=0.6) from generating trades
+        net_margin = abs(buy_strength - sell_strength)
+        min_net_margin = self.config.get('min_net_margin', 0.4)
+
+        # Minimum confirmation: require at least 2 indicators agreeing with strength > 0.3
+        min_confirmations = self.config.get('min_confirmation_signals', 2)
+
         # Determine final signal
-        if buy_strength > sell_strength and buy_strength >= self.weak_signal_threshold:
-            # Buy signal
-            if buy_strength >= self.strong_signal_threshold:
+        if (buy_strength > sell_strength
+                and buy_strength >= self.weak_signal_threshold
+                and net_margin >= min_net_margin):
+            # Check confirmation count
+            confirming_buy = [s for s in buy_signals if s[1] > 0.3]
+            if len(confirming_buy) < min_confirmations:
+                signal_type = SignalType.NONE
+                reason = f"Insufficient buy confirmations ({len(confirming_buy)}/{min_confirmations})"
+                strength = 0.0
+            elif buy_strength >= self.strong_signal_threshold:
                 signal_type = SignalType.STRONG_BUY
+                reasons = [s[2] for s in buy_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Buy signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(buy_strength, indicators, 'buy')
+                else:
+                    strength = min(buy_strength, 1.0)
             else:
                 signal_type = SignalType.BUY
-            
-            reasons = [s[2] for s in buy_signals if s[1] > 0]
-            reason = "; ".join(reasons) if reasons else "Buy signal"
-            strength = min(buy_strength, 1.0)
-            
-        elif sell_strength > buy_strength and sell_strength >= self.weak_signal_threshold:
-            # Sell signal
-            if sell_strength >= self.strong_signal_threshold:
+                reasons = [s[2] for s in buy_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Buy signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(buy_strength, indicators, 'buy')
+                else:
+                    strength = min(buy_strength, 1.0)
+
+        elif (sell_strength > buy_strength
+                and sell_strength >= self.weak_signal_threshold
+                and net_margin >= min_net_margin):
+            # Check confirmation count
+            confirming_sell = [s for s in sell_signals if s[1] > 0.3]
+            if len(confirming_sell) < min_confirmations:
+                signal_type = SignalType.NONE
+                reason = f"Insufficient sell confirmations ({len(confirming_sell)}/{min_confirmations})"
+                strength = 0.0
+            elif sell_strength >= self.strong_signal_threshold:
                 signal_type = SignalType.STRONG_SELL
+                reasons = [s[2] for s in sell_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Sell signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(sell_strength, indicators, 'sell')
+                else:
+                    strength = min(sell_strength, 1.0)
             else:
                 signal_type = SignalType.SELL
-            
-            reasons = [s[2] for s in sell_signals if s[1] > 0]
-            reason = "; ".join(reasons) if reasons else "Sell signal"
-            strength = min(sell_strength, 1.0)
-            
+                reasons = [s[2] for s in sell_signals if s[1] > 0]
+                reason = "; ".join(reasons) if reasons else "Sell signal"
+                if indicators:
+                    strength = self._calculate_signal_strength(sell_strength, indicators, 'sell')
+                else:
+                    strength = min(sell_strength, 1.0)
+
         else:
-            # No clear signal
+            # No clear signal (insufficient margin or strength)
             signal_type = SignalType.NONE
             reason = "No clear signal"
             strength = 0.0
@@ -371,6 +496,7 @@ class SignalDetector:
     ) -> Signal:
         """
         Check for exit signals for an existing position.
+        Only exits on strong confirmations to avoid cutting winners short.
         
         Args:
             symbol: Trading pair symbol
@@ -389,35 +515,34 @@ class SignalDetector:
             'unrealized_pnl': (current_price - entry_price) / entry_price
         }
         
-        # Check for trend reversal
         if position_type == 'long':
-            # Exit long if trend turns bearish
-            if indicators.trend == 'downtrend':
+            # Exit on confirmed trend reversal (strong downtrend)
+            if indicators.trend == 'downtrend' and indicators.adx is not None and indicators.adx > 25:
                 return Signal(
                     signal=SignalType.SELL,
-                    reason="Trend reversal - exiting long",
+                    reason="Trend reversal to downtrend",
                     strength=0.8,
                     symbol=symbol,
                     price=current_price,
                     details=details
                 )
             
-            # Exit long if RSI overbought
-            if indicators.rsi and indicators.rsi >= self.rsi_overbought:
+            # Exit on RSI extreme overbought only
+            if indicators.rsi and indicators.rsi >= self.rsi_overbought + 5:
                 return Signal(
                     signal=SignalType.SELL,
-                    reason=f"RSI overbought ({indicators.rsi:.1f}) - exiting long",
+                    reason=f"RSI extremely overbought ({indicators.rsi:.1f})",
                     strength=0.7,
                     symbol=symbol,
                     price=current_price,
                     details=details
                 )
             
-            # Exit long on bearish crossover
-            if indicators.last_crossover == CrossoverType.BEARISH:
+            # Exit on bearish crossover with trend confirmation
+            if indicators.last_crossover == CrossoverType.BEARISH and indicators.trend == 'downtrend':
                 return Signal(
                     signal=SignalType.SELL,
-                    reason="Bearish EMA crossover - exiting long",
+                    reason="Bearish EMA crossover in downtrend",
                     strength=0.6,
                     symbol=symbol,
                     price=current_price,
@@ -425,33 +550,33 @@ class SignalDetector:
                 )
         
         else:  # short position
-            # Exit short if trend turns bullish
-            if indicators.trend == 'uptrend':
+            # Exit on confirmed trend reversal (strong uptrend)
+            if indicators.trend == 'uptrend' and indicators.adx is not None and indicators.adx > 25:
                 return Signal(
                     signal=SignalType.BUY,
-                    reason="Trend reversal - exiting short",
+                    reason="Trend reversal to uptrend",
                     strength=0.8,
                     symbol=symbol,
                     price=current_price,
                     details=details
                 )
             
-            # Exit short if RSI oversold
-            if indicators.rsi and indicators.rsi <= self.rsi_oversold:
+            # Exit on RSI extreme oversold only
+            if indicators.rsi and indicators.rsi <= self.rsi_oversold - 5:
                 return Signal(
                     signal=SignalType.BUY,
-                    reason=f"RSI oversold ({indicators.rsi:.1f}) - exiting short",
+                    reason=f"RSI extremely oversold ({indicators.rsi:.1f})",
                     strength=0.7,
                     symbol=symbol,
                     price=current_price,
                     details=details
                 )
             
-            # Exit short on bullish crossover
-            if indicators.last_crossover == CrossoverType.BULLISH:
+            # Exit on bullish crossover with trend confirmation
+            if indicators.last_crossover == CrossoverType.BULLISH and indicators.trend == 'uptrend':
                 return Signal(
                     signal=SignalType.BUY,
-                    reason="Bullish EMA crossover - exiting short",
+                    reason="Bullish EMA crossover in uptrend",
                     strength=0.6,
                     symbol=symbol,
                     price=current_price,

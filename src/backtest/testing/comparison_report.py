@@ -667,9 +667,9 @@ class ToleranceConfig:
         fee_tolerance: float = 0.01,
         risk_amount_tolerance: float = 0.01,
         timing_tolerance_seconds: float = 1.0,
-        minor_threshold: float = 0.01,
-        moderate_threshold: float = 0.05,
-        critical_threshold: float = 0.10
+        minor_threshold: float = 0.05,
+        moderate_threshold: float = 0.10,
+        critical_threshold: float = 0.20
     ):
         self.signal_strength_tolerance = signal_strength_tolerance
         self.signal_price_tolerance = signal_price_tolerance

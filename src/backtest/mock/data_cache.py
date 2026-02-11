@@ -4,6 +4,7 @@ Data cache module for backtesting.
 This module provides a mock data cache that serves pre-loaded historical data.
 """
 
+import bisect
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
@@ -34,9 +35,17 @@ class BacktestDataCache:
         self.current_time: Optional[datetime] = None
         self._cache: Dict[str, Dict[str, List[OHLCV]]] = {}
         
-        # Initialize cache structure
-        for symbol in historical_data:
+        self._timestamp_index: Dict[str, Dict[datetime, int]] = {}
+        self._sorted_timestamps: Dict[str, List[datetime]] = {}
+        self._current_index: Dict[str, int] = {}
+        
+        for symbol, candles in historical_data.items():
             self._cache[symbol] = {}
+            self._timestamp_index[symbol] = {
+                c.timestamp: i for i, c in enumerate(candles)
+            }
+            self._sorted_timestamps[symbol] = [c.timestamp for c in candles]
+            self._current_index[symbol] = len(candles) - 1
         
         logger.info(f"BacktestDataCache initialized with {len(historical_data)} symbols")
     
@@ -48,6 +57,9 @@ class BacktestDataCache:
             current_time: Current simulation time
         """
         self.current_time = current_time
+        for symbol, timestamps in self._sorted_timestamps.items():
+            idx = bisect.bisect_right(timestamps, current_time) - 1
+            self._current_index[symbol] = idx
     
     async def update_ohlcv(self, symbol: str, candle: OHLCV) -> None:
         """
@@ -66,12 +78,10 @@ class BacktestDataCache:
         if timeframe not in self._cache[symbol]:
             self._cache[symbol][timeframe] = []
         
-        # Check if we need to update existing candle or add new one
         candles = self._cache[symbol][timeframe]
         if candles:
             last_candle = candles[-1]
             if last_candle.timestamp == candle.timestamp:
-                # Update existing candle
                 candles[-1] = candle
             else:
                 candles.append(candle)
@@ -95,22 +105,19 @@ class BacktestDataCache:
         Returns:
             List of OHLCV objects, oldest first
         """
-        # Get historical data for symbol
         historical = self.historical_data.get(symbol, [])
+        if not historical:
+            return []
         
-        # Filter by current time
         if self.current_time:
-            filtered = [
-                c for c in historical
-                if c.timestamp <= self.current_time
-            ]
+            end = self._current_index.get(symbol, -1) + 1
+            if end <= 0:
+                return []
+            sliced = historical[:end]
         else:
-            filtered = historical
+            sliced = historical
         
-        # Filter by timeframe
-        filtered = [c for c in filtered if c.timeframe == timeframe]
-        
-        # Return last N candles
+        filtered = [c for c in sliced if c.timeframe == timeframe]
         return filtered[-limit:] if filtered else []
     
     def get_latest_price(self, symbol: str) -> Optional[float]:
@@ -124,21 +131,14 @@ class BacktestDataCache:
             Latest price as float, or None if not available
         """
         historical = self.historical_data.get(symbol, [])
-        
-        # Filter by current time
-        if self.current_time:
-            filtered = [
-                c for c in historical
-                if c.timestamp <= self.current_time
-            ]
-        else:
-            filtered = historical
-        
-        if not filtered:
+        if not historical:
             return None
         
-        # Return close price of latest candle
-        return float(filtered[-1].close)
+        idx = self._current_index.get(symbol, -1)
+        if idx < 0:
+            return None
+        
+        return float(historical[idx].close)
     
     def get_ticker(self, symbol: str) -> Optional[PriceData]:
         """
@@ -151,22 +151,14 @@ class BacktestDataCache:
             PriceData object or None
         """
         historical = self.historical_data.get(symbol, [])
-        
-        # Filter by current time
-        if self.current_time:
-            filtered = [
-                c for c in historical
-                if c.timestamp <= self.current_time
-            ]
-        else:
-            filtered = historical
-        
-        if not filtered:
+        if not historical:
             return None
         
-        latest = filtered[-1]
+        idx = self._current_index.get(symbol, -1)
+        if idx < 0:
+            return None
         
-        # Simulate bid/ask spread
+        latest = historical[idx]
         close_price = float(latest.close)
         bid = close_price * 0.9999
         ask = close_price * 1.0001
@@ -195,17 +187,18 @@ class BacktestDataCache:
             Latest OHLCV object or None
         """
         historical = self.historical_data.get(symbol, [])
+        if not historical:
+            return None
         
-        # Filter by current time and timeframe
-        if self.current_time:
-            filtered = [
-                c for c in historical
-                if c.timestamp <= self.current_time and c.timeframe == timeframe
-            ]
-        else:
-            filtered = [c for c in historical if c.timeframe == timeframe]
+        idx = self._current_index.get(symbol, -1)
+        if idx < 0:
+            return None
         
-        return filtered[-1] if filtered else None
+        for i in range(idx, -1, -1):
+            if historical[i].timeframe == timeframe:
+                return historical[i]
+        
+        return None
     
     def get_candle_at_time(
         self,
@@ -224,11 +217,17 @@ class BacktestDataCache:
         Returns:
             OHLCV object or None
         """
-        historical = self.historical_data.get(symbol, [])
+        index_map = self._timestamp_index.get(symbol)
+        if index_map is None:
+            return None
         
-        for candle in historical:
-            if candle.timeframe == timeframe and candle.timestamp == timestamp:
-                return candle
+        idx = index_map.get(timestamp)
+        if idx is None:
+            return None
+        
+        candle = self.historical_data[symbol][idx]
+        if candle.timeframe == timeframe:
+            return candle
         
         return None
     
@@ -260,4 +259,6 @@ class BacktestDataCache:
         """Reset the cache."""
         self._cache.clear()
         self.current_time = None
+        for symbol, candles in self.historical_data.items():
+            self._current_index[symbol] = len(candles) - 1
         logger.info("BacktestDataCache reset")

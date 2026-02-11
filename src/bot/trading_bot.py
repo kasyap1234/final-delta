@@ -14,6 +14,8 @@ from typing import Dict, List, Optional, Any, Callable, Set
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+
 # Import configuration
 from ..config import TradingBotConfig, load_config
 
@@ -25,31 +27,45 @@ from ..data import DataCache, StreamManager, StreamConfig
 
 # Import indicators
 from ..indicators import (
-    IndicatorManager, IndicatorValues,
-    SignalDetector, Signal, SignalType
+    IndicatorManager,
+    IndicatorValues,
+    SignalDetector,
+    Signal,
+    SignalType,
+    EnhancedSignalDetector,
+    MarketRegimeDetector,
 )
+from ..indicators.market_regime import get_regime_profile
 
 # Import correlation
 from ..correlation import CorrelationCalculator, PriceHistory
 
 # Import risk management
 from ..risk import (
-    RiskManager, RiskCheckResult,
-    PositionSizer, PositionSizeResult,
-    PortfolioTracker, Position
+    RiskManager,
+    RiskCheckResult,
+    PositionSizer,
+    PositionSizeResult,
+    PortfolioTracker,
+    Position,
 )
 
 # Import execution
 from ..execution import (
-    OrderExecutor, OrderManager,
-    PriceCalculator, OrderResult, OrderStatus
+    OrderExecutor,
+    OrderManager,
+    PriceCalculator,
+    OrderResult,
+    OrderStatus,
 )
 
 # Import hedge management
 from ..hedge import (
-    HedgeManager, HedgeExecutor,
-    HedgeManagerConfig, HedgeExecutorConfig,
-    HedgeTriggerResult
+    HedgeManager,
+    HedgeExecutor,
+    HedgeManagerConfig,
+    HedgeExecutorConfig,
+    HedgeTriggerResult,
 )
 
 # Import database
@@ -65,8 +81,9 @@ logger = get_logger(__name__)
 
 
 @dataclass
-class TradingBotConfig:
-    """Configuration for the trading bot."""
+class BotRuntimeConfig:
+    """Runtime configuration for the trading bot."""
+
     check_interval: float = 5.0  # Seconds between trading cycles
     max_retries: int = 3
     retry_delay: float = 1.0
@@ -76,11 +93,11 @@ class TradingBotConfig:
 
 class CircuitBreaker:
     """Circuit breaker for handling repeated failures."""
-    
-    STATE_CLOSED = 'closed'
-    STATE_OPEN = 'open'
-    STATE_HALF_OPEN = 'half_open'
-    
+
+    STATE_CLOSED = "closed"
+    STATE_OPEN = "open"
+    STATE_HALF_OPEN = "half_open"
+
     def __init__(self, failure_threshold: int = 5, reset_timeout: float = 60.0):
         self.failure_threshold = failure_threshold
         self.reset_timeout = reset_timeout
@@ -88,11 +105,11 @@ class CircuitBreaker:
         self._failure_count = 0
         self._last_failure_time: Optional[float] = None
         self._lock = asyncio.Lock()
-    
+
     @property
     def state(self) -> str:
         return self._state
-    
+
     async def call(self, func: Callable, *args, **kwargs) -> Any:
         async with self._lock:
             if self._state == self.STATE_OPEN:
@@ -101,7 +118,7 @@ class CircuitBreaker:
                     logger.info("Circuit breaker entering half-open state")
                 else:
                     raise Exception("Circuit breaker is OPEN")
-        
+
         try:
             result = await func(*args, **kwargs)
             await self._on_success()
@@ -109,7 +126,7 @@ class CircuitBreaker:
         except Exception as e:
             await self._on_failure()
             raise e
-    
+
     async def _on_success(self):
         async with self._lock:
             if self._state == self.STATE_HALF_OPEN:
@@ -118,16 +135,18 @@ class CircuitBreaker:
                 logger.info("Circuit breaker closed after successful call")
             else:
                 self._failure_count = 0
-    
+
     async def _on_failure(self):
         async with self._lock:
             self._failure_count += 1
             self._last_failure_time = datetime.now().timestamp()
-            
+
             if self._failure_count >= self.failure_threshold:
                 self._state = self.STATE_OPEN
-                logger.warning(f"Circuit breaker OPENED after {self._failure_count} failures")
-    
+                logger.warning(
+                    f"Circuit breaker OPENED after {self._failure_count} failures"
+                )
+
     def _should_attempt_reset(self) -> bool:
         if self._last_failure_time is None:
             return True
@@ -138,7 +157,7 @@ class CircuitBreaker:
 class TradingBot:
     """
     Main trading bot orchestrator.
-    
+
     This class coordinates all modules and implements the main trading loop:
     1. Fetch market data
     2. Calculate indicators
@@ -146,29 +165,29 @@ class TradingBot:
     4. Execute trades
     5. Manage hedges
     6. Log everything
-    
+
     Attributes:
         config: TradingBotConfig instance
         running: Whether the bot is currently running
         initialized: Whether the bot has been initialized
     """
-    
+
     def __init__(self, config: TradingBotConfig):
         """
         Initialize the trading bot.
-        
+
         Args:
             config: TradingBotConfig with all settings
         """
         self.config = config
-        self.bot_config = TradingBotConfig()
-        
+        self.bot_config = BotRuntimeConfig()
+
         # State
         self.running = False
         self.initialized = False
         self._shutdown_event = asyncio.Event()
         self._trading_task: Optional[asyncio.Task] = None
-        
+
         # Components (initialized in initialize())
         self.db_manager: Optional[DatabaseManager] = None
         self.state_manager: Optional[StateManager] = None
@@ -186,22 +205,29 @@ class TradingBot:
         self.order_manager: Optional[OrderManager] = None
         self.hedge_executor: Optional[HedgeExecutor] = None
         self.hedge_manager: Optional[HedgeManager] = None
-        
+
         # Tracking
         self.open_positions: Dict[str, Dict[str, Any]] = {}
         self.active_orders: Dict[str, Dict[str, Any]] = {}
         self.symbols: List[str] = []
         self.indicators: Dict[str, IndicatorValues] = {}
         self.signals: List[Signal] = []
-        
+        self.position_peak_prices: Dict[str, float] = {}  # For trailing stops
+        self._active_entry_signals: Dict[str, str] = {}  # symbol -> direction
+        self._entry_candle_count: Dict[str, int] = {}  # symbol -> processed candle count
+        self._last_trade_candle: Dict[str, int] = {}  # symbol -> last trade candle index
+        self._daily_trade_count: Dict[str, int] = {}  # symbol -> trades today
+        self._current_day: Optional[str] = None
+        self._last_processed_entry_candle: Dict[str, Any] = {}  # symbol -> candle timestamp
+
         # Circuit breakers
         self._circuit_breakers: Dict[str, CircuitBreaker] = {}
-        
+
         # Signal handlers
         self._setup_signal_handlers()
-        
+
         logger.info("TradingBot initialized")
-    
+
     def _setup_signal_handlers(self):
         """Setup handlers for shutdown signals."""
         try:
@@ -211,47 +237,46 @@ class TradingBot:
         except NotImplementedError:
             # Windows doesn't support add_signal_handler
             pass
-    
+
     def _signal_handler(self):
         """Handle shutdown signals."""
         logger.info("Shutdown signal received")
         asyncio.create_task(self.stop())
-    
+
     async def initialize(self) -> bool:
         """
         Initialize all bot components.
-        
+
         Returns:
             True if initialization successful, False otherwise
         """
         try:
             logger.info("Initializing trading bot components...")
-            
+
             # 1. Initialize database
             db_path = self.config.database.db_path
             self.db_manager = DatabaseManager(db_path)
             self.db_manager.initialize_database()
             logger.info(f"Database initialized at {db_path}")
-            
+
             # 2. Initialize state manager
             state_file = Path(db_path).parent / "bot_state.json"
-            self.state_manager = StateManager(
-                self.db_manager,
-                str(state_file)
-            )
+            self.state_manager = StateManager(self.db_manager, str(state_file))
             logger.info("State manager initialized")
-            
+
             # 3. Initialize exchange client
             exchange_config = {
-                'api_key': self.config.exchange.api_key,
-                'api_secret': self.config.exchange.api_secret,
-                'sandbox': self.config.exchange.sandbox,
-                'testnet': self.config.exchange.testnet,
+                "api_key": self.config.exchange.api_key,
+                "api_secret": self.config.exchange.api_secret,
+                "sandbox": self.config.exchange.sandbox,
+                "testnet": self.config.exchange.testnet,
             }
             self.exchange = ExchangeClient(exchange_config)
             await self.exchange.initialize()
-            logger.info(f"Exchange client initialized ({self.config.exchange.exchange_id})")
-            
+            logger.info(
+                f"Exchange client initialized ({self.config.exchange.exchange_id})"
+            )
+
             # 4. Initialize data cache and stream manager
             self.data_cache = DataCache()
             stream_config = StreamConfig(
@@ -261,715 +286,1155 @@ class TradingBot:
                 self.data_cache,
                 stream_config,
                 api_key=self.config.exchange.api_key,
-                api_secret=self.config.exchange.api_secret
+                api_secret=self.config.exchange.api_secret,
             )
             logger.info("Data components initialized")
-            
+
             # 5. Initialize indicators and signal detector
             strategy_config = self.config.strategy.dict()
             self.indicator_manager = IndicatorManager(strategy_config)
-            self.signal_detector = SignalDetector({
-                'rsi_overbought': strategy_config.get('rsi_long_threshold', 60) + 10,
-                'rsi_oversold': strategy_config.get('rsi_short_threshold', 40) - 10,
-            })
-            logger.info("Indicator components initialized")
-            
+
+            # Use enhanced signal detector with regime detection
+            signal_config = {
+                "rsi_overbought": strategy_config.get("rsi_overbought", 70),
+                "rsi_oversold": strategy_config.get("rsi_oversold", 30),
+                "rsi_mid_high": strategy_config.get("rsi_mid_high", 60),
+                "rsi_mid_low": strategy_config.get("rsi_mid_low", 40),
+                "strong_signal_threshold": strategy_config.get(
+                    "strong_signal_threshold", 0.80
+                ),
+                "weak_signal_threshold": strategy_config.get(
+                    "weak_signal_threshold", 0.35
+                ),
+                "mr_rsi_threshold": strategy_config.get("mr_rsi_threshold", 20),
+                "mr_bb_threshold": strategy_config.get("mr_bb_threshold", 0.02),
+            }
+            self.signal_detector = EnhancedSignalDetector(signal_config)
+
+            # Initialize market regime detector
+            regime_config = {
+                "adx_strong_trend": strategy_config.get("adx_strong_trend", 25),
+                "adx_weak_trend": strategy_config.get("adx_weak_trend", 20),
+                "bb_squeeze_threshold": strategy_config.get(
+                    "bb_squeeze_threshold", 0.06
+                ),
+                "bb_volatile_threshold": strategy_config.get(
+                    "bb_volatile_threshold", 0.10
+                ),
+                "min_confidence": strategy_config.get("min_confidence", 0.6),
+            }
+            self.regime_detector = MarketRegimeDetector(regime_config)
+            logger.info(
+                "Enhanced indicator components initialized with regime detection"
+            )
+
             # 6. Initialize correlation calculator
             self.correlation_calc = CorrelationCalculator()
             logger.info("Correlation calculator initialized")
-            
+
             # 7. Initialize risk management
             risk_config = {
-                'max_total_exposure_percent': 80.0,
-                'max_total_risk_percent': self.config.risk_management.max_risk_per_trade_percent * 3,
-                'max_positions': self.config.trading.max_positions,
-                'daily_loss_limit_percent': 3.0,
-                'weekly_loss_limit_percent': 10.0,
+                "max_total_exposure_percent": 80.0,
+                "max_total_risk_percent": self.config.risk_management.max_risk_per_trade_percent
+                * 3,
+                "max_positions": self.config.trading.max_positions,
+                "daily_loss_limit_percent": 3.0,
+                "weekly_loss_limit_percent": 10.0,
             }
             self.risk_manager = RiskManager(risk_config)
-            
+
             position_sizer_config = {
-                'default_risk_percent': self.config.risk_management.risk_per_trade_percent,
-                'default_atr_multiplier': strategy_config.get('atr_multiplier', 2.0),
-                'default_risk_reward_ratio': self.config.risk_management.take_profit_r_ratio,
+                "default_risk_percent": self.config.risk_management.risk_per_trade_percent,
+                "default_atr_multiplier": strategy_config.get("atr_multiplier", 2.0),
+                "default_risk_reward_ratio": self.config.risk_management.take_profit_r_ratio,
             }
             self.position_sizer = PositionSizer(position_sizer_config)
-            
+
             self.portfolio_tracker = PortfolioTracker(
                 initial_balance=self.config.risk_management.account_balance
             )
             logger.info("Risk management components initialized")
-            
+
             # 8. Initialize execution components
             self.price_calculator = PriceCalculator()
-            self.order_executor = OrderExecutor(
-                self.exchange,
-                self.price_calculator
-            )
-            self.order_manager = OrderManager(
-                self.order_executor,
-                self.db_manager
-            )
+            self.order_executor = OrderExecutor(self.exchange, self.price_calculator)
+            self.order_manager = OrderManager(self.order_executor)
             logger.info("Execution components initialized")
-            
+
             # 9. Initialize hedge management
             if self.bot_config.enable_hedging:
                 hedge_exec_config = HedgeExecutorConfig(
                     num_chunks=self.config.hedge.hedge_chunks
                 )
                 self.hedge_executor = HedgeExecutor(
-                    self.order_executor,
-                    hedge_exec_config
+                    self.order_executor, hedge_exec_config
                 )
-                
+
                 hedge_mgr_config = HedgeManagerConfig(
-                    hedge_trigger_threshold=self.config.hedge.hedge_trigger_percent / 100.0,
+                    hedge_trigger_threshold=self.config.hedge.hedge_trigger_percent
+                    / 100.0,
                     enable_rehedging=True,
-                    max_hedges_per_position=self.config.hedge.max_hedges_per_position
+                    max_hedges_per_position=self.config.hedge.max_hedges_per_position,
                 )
                 self.hedge_manager = HedgeManager(
-                    self.hedge_executor,
-                    self.correlation_calc,
-                    hedge_mgr_config
+                    self.hedge_executor, self.correlation_calc, hedge_mgr_config
                 )
                 logger.info("Hedge management components initialized")
-            
+
             # 10. Setup symbols
             self.symbols = self.config.trading.symbols
-            
+
             # 11. Recover previous state
             await self._recover_state()
-            
+
             self.initialized = True
             logger.info("Trading bot initialization complete")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to initialize trading bot: {e}", exc_info=True)
             return False
-    
+
     async def _recover_state(self):
         """Recover state from previous session."""
         try:
             recovered_positions = self.state_manager.recover_positions()
-            
+
             for pos_data in recovered_positions:
-                self.open_positions[pos_data['id']] = pos_data
-                
+                self.open_positions[pos_data["id"]] = pos_data
+
                 # Register with portfolio tracker
                 self.portfolio_tracker.add_position(
-                    symbol=pos_data['symbol'],
-                    side=pos_data['side'],
-                    size=pos_data['size'],
-                    entry_price=pos_data['entry_price'],
-                    stop_loss=pos_data.get('stop_loss'),
-                    take_profit=pos_data.get('take_profit'),
-                    risk_amount=pos_data.get('risk_amount', 0)
+                    symbol=pos_data["symbol"],
+                    side=pos_data["side"],
+                    size=pos_data["size"],
+                    entry_price=pos_data["entry_price"],
+                    stop_loss=pos_data.get("stop_loss"),
+                    take_profit=pos_data.get("take_profit"),
+                    risk_amount=pos_data.get("risk_amount", 0),
                 )
-                
+
                 # Register with hedge manager if enabled
                 if self.hedge_manager:
                     self.hedge_manager.register_position(pos_data)
-            
+
             if recovered_positions:
-                logger.info(f"Recovered {len(recovered_positions)} positions from previous session")
-                
+                logger.info(
+                    f"Recovered {len(recovered_positions)} positions from previous session"
+                )
+
         except Exception as e:
             logger.error(f"Error recovering state: {e}")
-    
+
     async def start(self) -> bool:
         """
         Start the trading bot.
-        
+
         Returns:
             True if started successfully, False otherwise
         """
         if not self.initialized:
             logger.error("Cannot start: bot not initialized")
             return False
-        
+
         if self.running:
             logger.warning("Bot is already running")
             return True
-        
+
         try:
             logger.info("Starting trading bot...")
-            
+
             # Start stream manager
             await self.stream_manager.start()
-            
+
             # Subscribe to symbols
-            await self.stream_manager.subscribe_symbols(self.symbols)
-            logger.info(f"Subscribed to {len(self.symbols)} symbols")
-            
-            # Start order manager
-            await self.order_manager.start()
-            
-            # Start hedge manager if enabled
-            if self.hedge_manager:
-                await self.hedge_manager.start()
-            
-            self.running = True
-            self._shutdown_event.clear()
-            
+            for symbol in self.symbols:
+                await self.stream_manager.subscribe_symbol(symbol)
+
+            # Wait a moment for initial data
+            await asyncio.sleep(2)
+
             # Start trading loop
+            self.running = True
             self._trading_task = asyncio.create_task(self._trading_loop())
-            
+
             logger.info("Trading bot started successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to start trading bot: {e}", exc_info=True)
             return False
-    
-    async def stop(self) -> bool:
-        """
-        Stop the trading bot gracefully.
-        
-        Returns:
-            True if stopped successfully, False otherwise
-        """
+
+    async def stop(self):
+        """Stop the trading bot."""
         if not self.running:
-            logger.warning("Bot is not running")
-            return True
-        
-        try:
-            logger.info("Stopping trading bot...")
-            
-            self.running = False
-            self._shutdown_event.set()
-            
-            # Cancel trading loop
-            if self._trading_task:
-                self._trading_task.cancel()
-                try:
-                    await self._trading_task
-                except asyncio.CancelledError:
-                    pass
-            
-            # Save state
-            if self.state_manager:
-                self._update_state_manager()
-                self.state_manager.save_state()
-            
-            # Stop hedge manager
-            if self.hedge_manager:
-                await self.hedge_manager.stop()
-            
-            # Stop order manager
-            if self.order_manager:
-                await self.order_manager.stop()
-            
-            # Stop stream manager
-            if self.stream_manager:
-                await self.stream_manager.stop()
-            
-            # Close exchange
-            if self.exchange:
-                await self.exchange.close()
-            
-            # Close database
-            if self.db_manager:
-                self.db_manager.close()
-            
-            logger.info("Trading bot stopped")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error stopping trading bot: {e}", exc_info=True)
-            return False
-    
+            return
+
+        logger.info("Stopping trading bot...")
+        self.running = False
+        self._shutdown_event.set()
+
+        # Cancel trading loop
+        if self._trading_task:
+            self._trading_task.cancel()
+            try:
+                await self._trading_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop stream manager
+        if self.stream_manager:
+            await self.stream_manager.stop()
+
+        # Save state
+        if self.state_manager:
+            self.state_manager.save_state()
+
+        # Close exchange connection
+        if self.exchange:
+            await self.exchange.close()
+
+        logger.info("Trading bot stopped")
+
     async def _trading_loop(self):
         """Main trading loop."""
         logger.info("Trading loop started")
-        
-        while self.running and not self._shutdown_event.is_set():
+
+        while self.running:
             try:
-                cycle_start = datetime.now()
-                
-                # 1. Update market data
-                await self._update_market_data()
-                
-                # 2. Calculate indicators
-                self._calculate_indicators()
-                
-                # 3. Process signals (entry)
-                await self._process_entry_signals()
-                
-                # 4. Manage open positions (exit, hedges)
-                await self._manage_positions()
-                
-                # 5. Update hedge status
-                if self.hedge_manager:
-                    await self._handle_hedges()
-                
-                # 6. Save state periodically
-                self._update_state_manager()
-                if len(self.open_positions) > 0 or len(self.active_orders) > 0:
-                    self.state_manager.save_state()
-                
-                # Calculate sleep time
-                cycle_duration = (datetime.now() - cycle_start).total_seconds()
-                sleep_time = max(0, self.bot_config.check_interval - cycle_duration)
-                
-                logger.debug(f"Trading cycle completed in {cycle_duration:.2f}s, "
-                            f"sleeping for {sleep_time:.2f}s")
-                
-                # Wait for next cycle or shutdown
+                # Wait for shutdown event with timeout
                 try:
                     await asyncio.wait_for(
                         self._shutdown_event.wait(),
-                        timeout=sleep_time
+                        timeout=self.bot_config.check_interval,
                     )
+                    break  # Shutdown requested
                 except asyncio.TimeoutError:
-                    pass
-                    
+                    pass  # Continue trading
+
+                # Update indicators
+                await self._update_indicators()
+
+                # Process entry signals
+                await self._process_entry_signals()
+
+                # Manage open positions
+                await self._manage_positions()
+
+                # Handle hedges
+                await self._handle_hedges()
+
+                # Save state periodically
+                if self.state_manager:
+                    self.state_manager.save_state()
+
             except asyncio.CancelledError:
-                logger.info("Trading loop cancelled")
                 break
             except Exception as e:
                 logger.error(f"Error in trading loop: {e}", exc_info=True)
-                await asyncio.sleep(self.bot_config.check_interval)
-        
+                await asyncio.sleep(1)
+
         logger.info("Trading loop ended")
-    
-    async def _update_market_data(self):
-        """Update market data from stream manager."""
+
+    async def _update_indicators(self):
+        """Update technical indicators for all symbols."""
         try:
+            timeframe = self.config.trading.timeframe
             for symbol in self.symbols:
-                price = self.stream_manager.get_last_price(symbol)
-                if price:
-                    self.state_manager.update_last_price(symbol, price)
-                    
-                    # Update portfolio tracker
-                    self.portfolio_tracker.update_price(symbol, price)
-                    
-                    # Update open positions
-                    for pos_id, pos in self.open_positions.items():
-                        if pos['symbol'] == symbol:
-                            pos['current_price'] = price
-                            
-                            # Calculate unrealized P&L
-                            if pos['side'] == 'long':
-                                pos['unrealized_pnl'] = (price - pos['entry_price']) * pos['size']
-                            else:
-                                pos['unrealized_pnl'] = (pos['entry_price'] - price) * pos['size']
-        
-        except Exception as e:
-            logger.error(f"Error updating market data: {e}")
-    
-    def _calculate_indicators(self):
-        """Calculate technical indicators for all symbols."""
-        try:
-            for symbol in self.symbols:
-                # Get OHLCV data from cache
-                ohlcv = self.data_cache.get_ohlcv(symbol)
-                
-                if ohlcv and len(ohlcv) > 50:
-                    # Calculate indicators
-                    indicators = self.indicator_manager.calculate_all(symbol, ohlcv)
+                ohlcv_objects = self.data_cache.get_ohlcv(symbol, timeframe)
+
+                if ohlcv_objects and len(ohlcv_objects) >= 50:
+                    ohlcv_list = [candle.to_list() for candle in ohlcv_objects]
+                    indicators = self.indicator_manager.calculate_all(symbol, ohlcv_list)
                     self.indicators[symbol] = indicators
-                    
-                    logger.debug(f"Indicators calculated for {symbol}")
-        
+
         except Exception as e:
-            logger.error(f"Error calculating indicators: {e}")
-    
+            logger.error(f"Error updating indicators: {e}")
+
     async def _process_entry_signals(self):
-        """Check for and process entry signals."""
+        """Process entry signals for all symbols (matching backtest generate_signal flow)."""
         try:
-            # Check if we can open new positions
-            if len(self.open_positions) >= self.config.trading.max_positions:
-                logger.debug("Max positions reached, skipping entry signals")
-                return
-            
+            timeframe = self.config.trading.timeframe
             for symbol in self.symbols:
-                # Skip if already have position in this symbol
-                has_position = any(
-                    p['symbol'] == symbol 
-                    for p in self.open_positions.values()
-                )
-                if has_position:
+                if len(self.open_positions) >= self.config.trading.max_positions:
+                    break
+                if any(p["symbol"] == symbol for p in self.open_positions.values()):
                     continue
-                
-                # Get indicators
+
+                ohlcv_objects = self.data_cache.get_ohlcv(symbol, timeframe)
+                if not ohlcv_objects:
+                    continue
+                last_candle_ts = getattr(ohlcv_objects[-1], "timestamp", None)
+                if last_candle_ts is None:
+                    continue
+                if self._last_processed_entry_candle.get(symbol) == last_candle_ts:
+                    continue
+                self._last_processed_entry_candle[symbol] = last_candle_ts
+                self._entry_candle_count[symbol] = self._entry_candle_count.get(symbol, 0) + 1
+
+                day_key = (
+                    last_candle_ts.strftime("%Y-%m-%d")
+                    if hasattr(last_candle_ts, "strftime")
+                    else str(last_candle_ts)[:10]
+                )
+                if day_key != self._current_day:
+                    self._current_day = day_key
+                    self._daily_trade_count.clear()
+
                 indicators = self.indicators.get(symbol)
                 if not indicators:
                     continue
-                
-                # Get current price
+
                 current_price = self.state_manager.get_last_price(symbol)
                 if not current_price:
                     continue
-                
-                # Check for signal
+
+                atr_percent = self._calculate_atr_percent(indicators, symbol=symbol)
+                if atr_percent is not None and atr_percent > self.config.strategy.max_atr_percent_for_entry:
+                    continue
+
+                price_arrays = self.indicator_manager.get_price_arrays(symbol)
+                price_history = price_arrays["closes"] if price_arrays else None
+
+                regime_metrics = self.regime_detector.detect_regime(
+                    prices=price_history if price_history is not None else np.array([current_price]),
+                    ema_fast=indicators.ema_9,
+                    ema_slow=indicators.ema_50,
+                    adx=indicators.adx,
+                    atr=indicators.atr,
+                )
+                regime_profile = get_regime_profile(regime_metrics.regime.value)
+
+                should_trade, _ = self.regime_detector.should_trade_in_regime(regime_metrics.regime)
+                if not should_trade:
+                    continue
+                if self.regime_detector.is_in_transition():
+                    continue
+
+                cooldown = int(regime_profile.get("cooldown_candles", 0))
+                last_trade = self._last_trade_candle.get(symbol, -cooldown - 1)
+                candle_count = self._entry_candle_count[symbol]
+                if candle_count - last_trade < cooldown:
+                    continue
+
+                max_daily = int(regime_profile.get("max_trades_per_day", 0))
+                if self._daily_trade_count.get(symbol, 0) >= max_daily:
+                    continue
+
+                current_volume = getattr(ohlcv_objects[-1], "volume", None)
+                avg_volume = None
+                if price_arrays and "volumes" in price_arrays:
+                    volumes = price_arrays["volumes"]
+                    if len(volumes) >= 20:
+                        avg_volume = float(np.mean(volumes[-20:]))
+
                 signal = self.signal_detector.check_entry_signal(
                     symbol=symbol,
                     indicators=indicators,
-                    current_price=current_price
+                    current_price=current_price,
+                    price_history=price_history,
+                    regime_metrics=regime_metrics,
+                    current_volume=current_volume,
+                    avg_volume=avg_volume,
+                    regime_profile=regime_profile,
                 )
-                
-                # Log signal if detected
-                if signal.signal != SignalType.NONE:
-                    logger.info(f"Signal detected: {symbol} - {signal.signal.value} "
-                               f"(strength: {signal.strength:.2f})")
-                    
-                    if self.bot_config.enable_signal_logging:
-                        self._log_signal(signal)
-                    
-                    # Check if we should execute
-                    if signal.strength >= 0.6:  # Minimum strength threshold
-                        await self._execute_entry(signal, indicators)
-        
+
+                if signal.signal == SignalType.NONE:
+                    continue
+
+                adjusted_strength = signal.strength
+                regime_conf_scale = min(1.0, max(0.5, regime_metrics.confidence / 0.60))
+                adjusted_strength *= regime_conf_scale
+
+                min_strength = float(regime_profile.get("signal_threshold", getattr(self.config.strategy, "min_signal_confidence", 0.30)))
+                if adjusted_strength < min_strength:
+                    continue
+
+                long_signals = (SignalType.BUY, SignalType.STRONG_BUY, SignalType.MEAN_REVERSION_LONG)
+                short_signals = (SignalType.SELL, SignalType.STRONG_SELL, SignalType.MEAN_REVERSION_SHORT)
+
+                if signal.signal in long_signals:
+                    direction = "long"
+                elif signal.signal in short_signals:
+                    direction = "short"
+                else:
+                    self._active_entry_signals.pop(symbol, None)
+                    continue
+
+                suitability = self.regime_detector.get_regime_suitability(regime_metrics.regime, direction)
+                if suitability < 0.3:
+                    continue
+                adjusted_strength *= suitability
+
+                if symbol in self._active_entry_signals and self._active_entry_signals[symbol] == direction:
+                    continue
+                self._active_entry_signals[symbol] = direction
+
+                logger.info(
+                    f"Signal detected: {symbol} - {signal.signal.value} "
+                    f"(raw_strength: {signal.strength:.2f}, adjusted: {adjusted_strength:.2f}, "
+                    f"regime: {regime_metrics.regime.value})"
+                )
+
+                if self.bot_config.enable_signal_logging:
+                    self._log_signal(signal)
+
+                await self._execute_entry(signal, indicators, adjusted_strength, regime_metrics)
+                self._last_trade_candle[symbol] = candle_count
+                self._daily_trade_count[symbol] = self._daily_trade_count.get(symbol, 0) + 1
+
         except Exception as e:
             logger.error(f"Error processing entry signals: {e}")
-    
-    async def _execute_entry(self, signal: Signal, indicators: IndicatorValues):
-        """Execute entry order for a signal."""
+
+    def _calculate_regime_multiplier(self, indicators: IndicatorValues) -> float:
+        """Calculate a soft regime quality multiplier (0.3 to 1.0) instead of hard gate."""
+        multiplier = 1.0
+
+        min_adx = getattr(self.config.strategy, 'min_adx_for_entry', 14.0)
+        min_spread = getattr(self.config.strategy, 'min_ema_spread_for_entry', 0.003)
+
+        if indicators.adx is not None and min_adx > 0:
+            adx_scale = min(1.0, max(0.5, indicators.adx / max(min_adx, 1.0)))
+            multiplier *= adx_scale
+
+        if (indicators.ema_9 and indicators.ema_50 and indicators.ema_50 > 0 and min_spread > 0):
+            ema_spread = abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+            spread_scale = min(1.0, max(0.6, ema_spread / max(min_spread, 0.001)))
+            multiplier *= spread_scale
+
+        return max(0.3, multiplier)
+
+    def _calculate_atr_percent(self, indicators: IndicatorValues, symbol: str = None) -> Optional[float]:
+        """Calculate ATR as a percent of price using recent candle data (matching backtest)."""
+        if indicators.atr is None:
+            return None
+
+        if symbol:
+            price_arrays = self.indicator_manager.get_price_arrays(symbol)
+            if price_arrays:
+                closes = price_arrays.get("closes")
+                atr_percent_lookback = getattr(self.config.strategy, 'atr_percent_lookback', 3)
+                if closes is not None and len(closes) >= atr_percent_lookback:
+                    window = closes[-atr_percent_lookback:]
+                    avg_price = float(np.mean(window))
+                    if avg_price > 0:
+                        return float(indicators.atr / avg_price)
+
+        reference_price = indicators.ema_50 or indicators.ema_9
+        if reference_price and reference_price > 0:
+            return float(indicators.atr / reference_price)
+
+        return None
+
+    def _volatility_risk_modifier(self, atr_percent: Optional[float]) -> float:
+        """Scale risk down as volatility approaches entry cut-off."""
+        if atr_percent is None:
+            return 1.0
+        limit = max(1e-6, float(getattr(self.config.strategy, "max_atr_percent_for_entry", 0.04)))
+        if atr_percent >= limit:
+            return 0.0
+        if atr_percent >= limit * 0.90:
+            return 0.45
+        if atr_percent >= limit * 0.75:
+            return 0.65
+        if atr_percent >= limit * 0.60:
+            return 0.80
+        return 1.0
+
+    def calculate_dynamic_atr_multiplier(self, indicators: IndicatorValues) -> float:
+        """
+        Calculate dynamic ATR multiplier based on market volatility.
+        Increases multiplier in high volatility conditions to avoid premature stop-outs.
+        Matches backtest implementation.
+
+        Args:
+            indicators: IndicatorValues object with ATR and price data
+
+        Returns:
+            Adjusted ATR multiplier
+        """
+        # Check if dynamic ATR is enabled
+        if not self.config.strategy.enable_dynamic_atr:
+            return self.config.strategy.atr_multiplier
+
+        base_multiplier = self.config.strategy.atr_multiplier  # 2.0
+
+        if indicators.atr and indicators.ema_50:
+            atr_percent = indicators.atr / indicators.ema_50
+
+            high_vol_threshold = self.config.strategy.high_volatility_atr_threshold
+
+            # High volatility regime (choppy market) - widen stops
+            if atr_percent > high_vol_threshold:  # 3% ATR
+                return base_multiplier * 1.5  # 3.0
+            # Medium-high volatility
+            elif atr_percent > high_vol_threshold * 0.83:  # 2.5% ATR
+                return base_multiplier * 1.25  # 2.5
+            # Medium volatility
+            elif atr_percent > high_vol_threshold * 0.67:  # 2% ATR
+                return base_multiplier * 1.1  # 2.2
+
+        return base_multiplier
+
+    def calculate_adaptive_rr_ratio(self, indicators: IndicatorValues) -> float:
+        """
+        Reduce profit targets in ranging markets.
+        Matches backtest implementation.
+
+        Args:
+            indicators: IndicatorValues with EMA data
+
+        Returns:
+            Adjusted risk:reward ratio
+        """
+        # Check if adaptive R:R is enabled
+        if not self.config.strategy.enable_adaptive_rr:
+            return self.config.risk_management.take_profit_r_ratio
+
+        base_rr = self.config.risk_management.take_profit_r_ratio  # 2.0
+
+        if indicators.ema_9 and indicators.ema_21 and indicators.ema_50:
+            ema_range = (
+                abs(indicators.ema_9 - indicators.ema_50) / indicators.ema_50
+            )
+
+            ranging_threshold = self.config.strategy.ranging_ema_threshold
+
+            if ema_range < ranging_threshold:  # Tight EMAs = ranging
+                return 1.5  # Lower target
+            elif ema_range < ranging_threshold * 2:  # Medium range
+                return 1.75
+
+        return base_rr
+
+    def calculate_signal_strength_multiplier(self, signal_confidence: float) -> float:
+        """
+        Calculate position size multiplier based on signal strength.
+
+        Position sizing based on signal quality:
+        - strength >= 0.8: 100% position (full size)
+        - strength 0.6-0.8: 75% position
+        - strength 0.4-0.6: 50% position
+        - strength < 0.4: 25% position
+
+        This preserves bull market gains (strong signals = full size)
+        while reducing choppy market losses (weak signals = smaller size).
+
+        Matches backtest implementation.
+
+        Args:
+            signal_confidence: Signal strength from 0.0 to 1.0
+
+        Returns:
+            Position size multiplier (0.25 to 1.0)
+        """
+        # Check if signal strength sizing is enabled
+        if not self.config.strategy.enable_signal_strength_sizing:
+            return 1.0
+
+        strong_threshold = self.config.strategy.strong_signal_threshold
+        weak_threshold = self.config.strategy.weak_signal_threshold
+
+        if signal_confidence >= strong_threshold:
+            return 1.0  # Full position
+        elif signal_confidence >= 0.6:
+            return 0.75  # 75% position
+        elif signal_confidence >= weak_threshold:
+            return 0.5  # 50% position
+        else:
+            return 0.25  # 25% position (minimum)
+
+    @staticmethod
+    def _config_value(value: Any, default: Any) -> Any:
+        """Return enum value (if present) or raw value with fallback default."""
+        if value is None:
+            return default
+        return value.value if hasattr(value, "value") else value
+
+    def _get_entry_execution_settings(self) -> Dict[str, Any]:
+        """Build entry execution settings from config with safe defaults."""
+        order_cfg = getattr(self.config, "order", None)
+
+        order_type = str(
+            self._config_value(getattr(order_cfg, "order_type", None), "limit")
+        ).lower()
+        if order_type not in {"limit", "market"}:
+            order_type = "limit"
+
+        fallback_type = str(
+            self._config_value(getattr(order_cfg, "fallback_order_type", None), "market")
+        ).lower()
+        if fallback_type not in {"limit", "market"}:
+            fallback_type = "market"
+
+        mode = str(getattr(order_cfg, "entry_execution_mode", "maker_then_taker")).lower()
+        if mode not in {"maker_only", "maker_then_taker", "taker_only"}:
+            mode = "maker_then_taker"
+
+        return {
+            "mode": mode,
+            "order_type": order_type,
+            "post_only": bool(getattr(order_cfg, "post_only", order_type == "limit")),
+            "price_offset_percent": float(getattr(order_cfg, "price_offset_percent", 0.01)),
+            "time_in_force": str(getattr(order_cfg, "time_in_force", "GTC")),
+            "entry_timeout_seconds": float(getattr(order_cfg, "entry_timeout_seconds", 45)),
+            "enable_taker_fallback": bool(getattr(order_cfg, "enable_taker_fallback", True)),
+            "fallback_order_type": fallback_type,
+            "fallback_time_in_force": str(getattr(order_cfg, "fallback_time_in_force", "IOC")),
+        }
+
+    def _build_entry_limit_price(self, side: str, decision_price: float, offset_percent: float) -> float:
+        """Build a passive limit price around decision price."""
+        offset = max(0.0, float(offset_percent)) / 100.0
+        if side == "buy":
+            return decision_price * (1.0 - offset)
+        return decision_price * (1.0 + offset)
+
+    async def _execute_entry(
+        self, signal: Signal, indicators: IndicatorValues,
+        adjusted_strength: float = None, regime_metrics=None,
+    ):
+        """Execute entry order for a signal (matching backtest position sizing)."""
         try:
             symbol = signal.symbol
             current_price = signal.price
-            
-            # Determine side
-            side = 'long' if signal.signal in (SignalType.BUY, SignalType.STRONG_BUY) else 'short'
-            
-            # Calculate stop loss
-            atr = indicators.atr or (current_price * 0.02)  # Default 2% if no ATR
-            stop_loss_result = self.position_sizer.calculate_stop_loss(
+
+            if adjusted_strength is None:
+                adjusted_strength = signal.strength
+
+            long_signals = (SignalType.BUY, SignalType.STRONG_BUY, SignalType.MEAN_REVERSION_LONG)
+            side = "long" if signal.signal in long_signals else "short"
+
+            regime_value = "unknown"
+            if regime_metrics and getattr(regime_metrics, "regime", None) is not None:
+                regime = regime_metrics.regime
+                regime_value = regime.value if hasattr(regime, "value") else str(regime)
+            regime_profile = get_regime_profile(regime_value)
+            atr_multiplier = float(regime_profile.get("atr_multiplier", self.config.strategy.atr_multiplier))
+
+            stop_loss = self.signal_detector.get_stop_loss_price(
+                indicators=indicators,
                 entry_price=current_price,
-                atr_value=atr,
-                atr_multiplier=self.config.strategy.atr_multiplier,
-                position_type=side
+                position_type=side,
+                multiplier=atr_multiplier,
             )
-            
-            # Calculate take profit
-            take_profit_result = self.position_sizer.calculate_take_profit(
-                entry_price=current_price,
-                stop_loss_price=stop_loss_result.stop_loss_price,
-                risk_reward_ratio=self.config.risk_management.take_profit_r_ratio,
-                position_type=side
-            )
-            
-            # Calculate position size
-            account_balance = self.portfolio_tracker.get_total_value()
-            position_result = self.position_sizer.calculate_position_size(
-                account_balance=account_balance,
-                risk_percent=self.config.risk_management.risk_per_trade_percent,
-                entry_price=current_price,
-                stop_loss_price=stop_loss_result.stop_loss_price,
-                symbol=symbol
-            )
-            
-            if not position_result.is_valid:
-                logger.warning(f"Invalid position size for {symbol}: {position_result.error_message}")
+
+            rr_ratio = float(regime_profile.get("rr_ratio", self.config.risk_management.take_profit_r_ratio))
+            if rr_ratio == 0.0:
+                atr = indicators.atr if indicators.atr else current_price * 0.02
+                if side == "long":
+                    take_profit = current_price + atr * 20.0
+                else:
+                    take_profit = current_price - atr * 20.0
+            else:
+                take_profit = self.signal_detector.get_take_profit_price(
+                    indicators=indicators,
+                    entry_price=current_price,
+                    position_type=side,
+                    risk_reward_ratio=rr_ratio,
+                )
+
+            base_risk = self.config.risk_management.max_risk_per_trade_percent
+            adjusted_risk = base_risk * float(regime_profile.get("position_size_mod", 1.0))
+            atr_percent = self._calculate_atr_percent(indicators, symbol=symbol)
+            adjusted_risk *= self._volatility_risk_modifier(atr_percent)
+            if adjusted_risk <= 0.0:
+                logger.info(f"Skipping {symbol} entry: volatility risk modifier reduced risk to zero.")
                 return
-            
-            # Check risk limits
+
+            recent_performance = self._calculate_recent_performance()
+            current_drawdown = self._calculate_current_drawdown()
+
+            account_balance = self.portfolio_tracker.get_total_value()
+            position_result = self.position_sizer.calculate_all_weather_position_size(
+                account_balance=account_balance,
+                risk_percent=adjusted_risk,
+                entry_price=current_price,
+                stop_loss_price=stop_loss,
+                symbol=symbol,
+                signal_strength=adjusted_strength,
+                regime_metrics=regime_metrics,
+                recent_performance=recent_performance,
+                current_drawdown=current_drawdown,
+            )
+
+            if not position_result.is_valid:
+                logger.warning(
+                    f"Invalid position size for {symbol}: {position_result.error_message}"
+                )
+                return
+
+            adjusted_position_size = position_result.position_size
+            current_positions = self._get_position_risks()
+            clamped_size = self.risk_manager.clamp_position_size_to_limits(
+                symbol=symbol,
+                requested_size=adjusted_position_size,
+                entry_price=current_price,
+                stop_loss_price=stop_loss,
+                current_positions=current_positions,
+                account_balance=account_balance,
+            )
+            if clamped_size <= 0.0:
+                logger.warning(f"Position size for {symbol} reduced to zero by risk clamps")
+                return
+            if clamped_size < adjusted_position_size:
+                logger.info(
+                    f"Clamped {symbol} size from {adjusted_position_size:.6f} to {clamped_size:.6f} "
+                    "to satisfy risk/exposure limits."
+                )
+            adjusted_position_size = clamped_size
+
+            logger.info(
+                f"Position sizing for {symbol}: base={position_result.position_size:.4f}, "
+                f"adjusted_strength={adjusted_strength:.2f}, "
+                f"regime={regime_value}, final={adjusted_position_size:.4f}"
+            )
+
             risk_check = self.risk_manager.can_open_position(
                 symbol=symbol,
-                position_size=position_result.position_size,
-                stop_loss_price=stop_loss_result.stop_loss_price,
+                position_size=adjusted_position_size,
+                stop_loss_price=stop_loss,
                 entry_price=current_price,
-                current_positions=self._get_position_risks()
+                current_positions=current_positions,
             )
-            
+
             if not risk_check.can_trade:
                 logger.warning(f"Risk check failed for {symbol}: {risk_check.reason}")
                 return
-            
-            # Execute order
+
+            order_side = "buy" if side == "long" else "sell"
+            exec_cfg = self._get_entry_execution_settings()
+
+            primary_order_type = exec_cfg["order_type"]
+            primary_post_only = exec_cfg["post_only"] and primary_order_type == "limit"
+            primary_tif = exec_cfg["time_in_force"]
+            primary_price = (
+                self._build_entry_limit_price(
+                    order_side,
+                    current_price,
+                    exec_cfg["price_offset_percent"],
+                )
+                if primary_order_type == "limit"
+                else None
+            )
+
+            if exec_cfg["mode"] == "taker_only":
+                primary_order_type = "market"
+                primary_post_only = False
+                primary_tif = "IOC"
+                primary_price = None
+
             order_result = await self.order_manager.place_entry_order(
                 symbol=symbol,
-                side='buy' if side == 'long' else 'sell',
-                amount=position_result.position_size,
-                price=current_price,
-                stop_loss=stop_loss_result.stop_loss_price,
-                take_profit=take_profit_result.take_profit_price
+                side=order_side,
+                amount=adjusted_position_size,
+                price=primary_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                order_type=primary_order_type,
+                post_only=primary_post_only,
+                time_in_force=primary_tif,
+                wait_for_fill=True,
+                timeout=exec_cfg["entry_timeout_seconds"],
+                require_filled=True,
+                cancel_unfilled=True,
             )
-            
+
+            if (
+                not order_result.success
+                and exec_cfg["mode"] == "maker_then_taker"
+                and exec_cfg["enable_taker_fallback"]
+            ):
+                fallback_type = exec_cfg["fallback_order_type"]
+                fallback_price = current_price if fallback_type == "limit" else None
+                fallback_timeout = max(5.0, min(15.0, exec_cfg["entry_timeout_seconds"]))
+
+                logger.info(
+                    f"Escalating {symbol} entry to {fallback_type.upper()} after unfilled maker attempt."
+                )
+                order_result = await self.order_manager.place_entry_order(
+                    symbol=symbol,
+                    side=order_side,
+                    amount=adjusted_position_size,
+                    price=fallback_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    order_type=fallback_type,
+                    post_only=False,
+                    time_in_force=exec_cfg["fallback_time_in_force"],
+                    wait_for_fill=True,
+                    timeout=fallback_timeout,
+                    require_filled=True,
+                    cancel_unfilled=True,
+                )
+
             if order_result.success:
                 logger.info(f"Entry order placed for {symbol}: {order_result.order_id}")
-                
-                # Track position
+                executed_entry_price = (
+                    float(order_result.price)
+                    if order_result.price is not None and float(order_result.price) > 0
+                    else current_price
+                )
+
                 position_data = {
-                    'id': order_result.order_id or f"pos_{symbol}_{datetime.now().timestamp()}",
-                    'symbol': symbol,
-                    'side': side,
-                    'entry_price': current_price,
-                    'current_price': current_price,
-                    'size': position_result.position_size,
-                    'unrealized_pnl': 0.0,
-                    'stop_loss': stop_loss_result.stop_loss_price,
-                    'take_profit': take_profit_result.take_profit_price,
-                    'risk_amount': position_result.risk_amount,
-                    'entry_time': datetime.now().isoformat(),
-                    'order_id': order_result.order_id
+                    "id": order_result.order_id
+                    or f"pos_{symbol}_{datetime.now().timestamp()}",
+                    "symbol": symbol,
+                    "side": side,
+                    "entry_price": executed_entry_price,
+                    "current_price": executed_entry_price,
+                    "size": adjusted_position_size,
+                    "stop_loss": stop_loss,
+                    "take_profit": take_profit,
+                    "entry_time": datetime.now(),
+                    "risk_amount": account_balance
+                    * (adjusted_risk / 100),
+                    "signal_strength": adjusted_strength,
+                    "atr_multiplier": atr_multiplier,
+                    "rr_ratio": rr_ratio,
                 }
-                
-                self.open_positions[position_data['id']] = position_data
+
+                self.open_positions[position_data["id"]] = position_data
                 self.state_manager.add_position(position_data)
-                
-                # Add to portfolio tracker
+
                 self.portfolio_tracker.add_position(
                     symbol=symbol,
                     side=side,
-                    size=position_result.position_size,
-                    entry_price=current_price,
-                    stop_loss=stop_loss_result.stop_loss_price,
-                    take_profit=take_profit_result.take_profit_price,
-                    risk_amount=position_result.risk_amount
+                    size=adjusted_position_size,
+                    entry_price=executed_entry_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    risk_amount=position_data["risk_amount"],
                 )
-                
-                # Register with hedge manager
+
                 if self.hedge_manager:
                     self.hedge_manager.register_position(position_data)
-                
-                # Save to database
-                self._save_trade_to_db(position_data, signal)
-                
+
+                self._log_entry_to_db(position_data, signal)
+
             else:
-                logger.error(f"Failed to place entry order for {symbol}: {order_result.error_message}")
-        
+                logger.error(
+                    f"Failed to place entry order for {symbol}: {order_result.error_message}"
+                )
+
         except Exception as e:
-            logger.error(f"Error executing entry: {e}", exc_info=True)
-    
+            logger.error(
+                f"Error executing entry for {signal.symbol}: {e}", exc_info=True
+            )
+
+    def _calculate_recent_performance(self) -> Dict[str, Any]:
+        """Calculate recent performance metrics (matching backtest)."""
+        if not self.db_manager:
+            return {"win_rate": 0.5}
+        try:
+            recent_trades = self.db_manager.get_trades(
+                status=TradeStatus.CLOSED, limit=20
+            )
+            if len(recent_trades) < 10:
+                return {"win_rate": 0.5}
+            wins = sum(1 for t in recent_trades if getattr(t, 'realized_pnl', 0) > 0)
+            return {"win_rate": wins / len(recent_trades)}
+        except Exception:
+            return {"win_rate": 0.5}
+
+    def _calculate_current_drawdown(self) -> float:
+        """Calculate current drawdown (matching backtest)."""
+        if not self.portfolio_tracker:
+            return 0.0
+        try:
+            current_value = self.portfolio_tracker.get_total_value()
+            initial_balance = self.config.risk_management.account_balance
+            peak = max(initial_balance, current_value)
+            if peak > 0:
+                return max(0.0, (peak - current_value) / peak)
+        except Exception:
+            pass
+        return 0.0
+
+    def _get_position_risks(self) -> List[Dict[str, Any]]:
+        """Get current position risks for risk manager."""
+        risks = []
+        for pos_id, position in self.open_positions.items():
+            risks.append(
+                {
+                    "symbol": position["symbol"],
+                    "size": position["size"],
+                    "entry_price": position["entry_price"],
+                    "stop_loss": position.get("stop_loss"),
+                    "side": position["side"],
+                }
+            )
+        return risks
+
     async def _manage_positions(self):
-        """Manage open positions (check exits, update status)."""
+        """Manage open positions (check stops, take profits, trailing stops, exit signals)."""
         try:
             positions_to_close = []
-            
+
             for pos_id, position in list(self.open_positions.items()):
-                symbol = position['symbol']
+                symbol = position["symbol"]
                 current_price = self.state_manager.get_last_price(symbol)
-                
+
                 if not current_price:
                     continue
-                
-                # Check stop loss
-                if position['side'] == 'long':
-                    if current_price <= position['stop_loss']:
+
+                # Update current price
+                position["current_price"] = current_price
+
+                # Update peak price tracking for trailing stops
+                if symbol not in self.position_peak_prices:
+                    self.position_peak_prices[symbol] = position["entry_price"]
+
+                if position["side"] == "long":
+                    self.position_peak_prices[symbol] = max(
+                        self.position_peak_prices[symbol], current_price
+                    )
+                else:
+                    self.position_peak_prices[symbol] = min(
+                        self.position_peak_prices[symbol], current_price
+                    )
+
+                # Check stop loss (highest priority)
+                if position["side"] == "long":
+                    if current_price <= position["stop_loss"]:
                         logger.info(f"Stop loss hit for {symbol} at {current_price}")
-                        positions_to_close.append((pos_id, 'stop_loss'))
+                        positions_to_close.append((pos_id, "stop_loss"))
                         continue
-                    
+
                     # Check take profit
-                    if current_price >= position['take_profit']:
+                    if current_price >= position["take_profit"]:
                         logger.info(f"Take profit hit for {symbol} at {current_price}")
-                        positions_to_close.append((pos_id, 'take_profit'))
+                        positions_to_close.append((pos_id, "take_profit"))
                         continue
-                
+
                 else:  # short
-                    if current_price >= position['stop_loss']:
+                    if current_price >= position["stop_loss"]:
                         logger.info(f"Stop loss hit for {symbol} at {current_price}")
-                        positions_to_close.append((pos_id, 'stop_loss'))
+                        positions_to_close.append((pos_id, "stop_loss"))
                         continue
-                    
+
                     # Check take profit
-                    if current_price <= position['take_profit']:
+                    if current_price <= position["take_profit"]:
                         logger.info(f"Take profit hit for {symbol} at {current_price}")
-                        positions_to_close.append((pos_id, 'take_profit'))
+                        positions_to_close.append((pos_id, "take_profit"))
                         continue
-                
-                # Check for exit signals
+
+                # Check trailing stop (activate after 1.5x ATR profit)
                 indicators = self.indicators.get(symbol)
+                atr = getattr(indicators, 'atr', None) if indicators else None
+                if atr and atr > 0:
+                    peak_price = self.position_peak_prices[symbol]
+                    trailing_distance = atr * 2.5
+                    if position["side"] == "long":
+                        profit_from_entry = peak_price - position["entry_price"]
+                        if profit_from_entry > atr * 1.5:
+                            trailing_stop = peak_price - trailing_distance
+                            if current_price <= trailing_stop:
+                                logger.info(
+                                    f"Trailing stop hit for {symbol} at {current_price} "
+                                    f"(peak: {peak_price:.2f})"
+                                )
+                                positions_to_close.append((pos_id, "trailing_stop"))
+                                continue
+                    else:  # short
+                        profit_from_entry = position["entry_price"] - peak_price
+                        if profit_from_entry > atr * 1.5:
+                            trailing_stop = peak_price + trailing_distance
+                            if current_price >= trailing_stop:
+                                logger.info(
+                                    f"Trailing stop hit for {symbol} at {current_price} "
+                                    f"(peak: {peak_price:.2f})"
+                                )
+                                positions_to_close.append((pos_id, "trailing_stop"))
+                                continue
+
                 if indicators:
                     exit_signal = self.signal_detector.check_exit_signal(
-                        position_side=position['side'],
+                        symbol=symbol,
                         indicators=indicators,
-                        current_price=current_price
+                        current_price=current_price,
+                        entry_price=position["entry_price"],
+                        position_type=position["side"],
                     )
-                    
-                    if exit_signal:
+
+                    if exit_signal.signal != SignalType.NONE:
                         logger.info(f"Exit signal for {symbol}: {exit_signal.reason}")
-                        positions_to_close.append((pos_id, 'signal'))
-            
+                        positions_to_close.append((pos_id, f"signal_{exit_signal.reason}"))
+
             # Close positions
             for pos_id, reason in positions_to_close:
                 await self._close_position(pos_id, reason)
-        
+                # Clean up trailing stop tracking
+                position = self.open_positions.get(pos_id)
+                if position:
+                    self.position_peak_prices.pop(position["symbol"], None)
+
         except Exception as e:
             logger.error(f"Error managing positions: {e}")
-    
+
     async def _close_position(self, position_id: str, reason: str):
         """Close a position."""
         try:
             position = self.open_positions.get(position_id)
             if not position:
                 return
-            
-            symbol = position['symbol']
+
+            symbol = position["symbol"]
             current_price = self.state_manager.get_last_price(symbol)
-            
+
             # Execute close order
-            close_side = 'sell' if position['side'] == 'long' else 'buy'
-            
+            close_side = "sell" if position["side"] == "long" else "buy"
+
             order_result = await self.order_manager.close_position(
                 symbol=symbol,
                 side=close_side,
-                amount=position['size'],
-                price=current_price
+                amount=position["size"],
+                price=current_price,
             )
-            
+
             if order_result.success:
                 # Calculate realized P&L
-                if position['side'] == 'long':
-                    realized_pnl = (current_price - position['entry_price']) * position['size']
+                if position["side"] == "long":
+                    realized_pnl = (current_price - position["entry_price"]) * position[
+                        "size"
+                    ]
                 else:
-                    realized_pnl = (position['entry_price'] - current_price) * position['size']
-                
-                logger.info(f"Position closed: {symbol} ({reason}), P&L: {realized_pnl:.2f}")
-                
-                # Update tracking
+                    realized_pnl = (position["entry_price"] - current_price) * position[
+                        "size"
+                    ]
+
+                logger.info(
+                    f"Position closed: {symbol} ({reason}), P&L: {realized_pnl:.2f}"
+                )
+
                 del self.open_positions[position_id]
+                self._active_entry_signals.pop(symbol, None)
                 self.state_manager.remove_position(position_id)
                 self.state_manager.update_daily_metrics(realized_pnl)
-                
+
                 # Update portfolio tracker
                 self.portfolio_tracker.close_position(
-                    symbol=symbol,
-                    exit_price=current_price
+                    position_id=position_id, exit_price=current_price
                 )
-                
+
                 # Close any associated hedges
                 if self.hedge_manager:
                     await self.hedge_manager.close_all_positions(position_id)
-                
+
                 # Update database
-                self._update_trade_in_db(position_id, current_price, realized_pnl, reason)
-                
+                self._update_trade_in_db(
+                    position_id, current_price, realized_pnl, reason
+                )
+
             else:
-                logger.error(f"Failed to close position {position_id}: {order_result.error_message}")
-        
+                logger.error(
+                    f"Failed to close position {position_id}: {order_result.error_message}"
+                )
+
         except Exception as e:
             logger.error(f"Error closing position {position_id}: {e}")
-    
+
     async def _handle_hedges(self):
         """Check and manage hedge positions."""
         try:
             if not self.hedge_manager:
                 return
-            
-            # Check hedge triggers for open positions
+
+            # Check each open position for hedge triggers
             for pos_id, position in self.open_positions.items():
-                trigger_result = self.hedge_manager.check_hedge_trigger(position)
-                
+                # Get current price
+                current_price = self.state_manager.get_last_price(position["symbol"])
+                if not current_price:
+                    continue
+
+                # Check if hedge should be triggered
+                trigger_result = self.hedge_manager.check_hedge_trigger(
+                    position=position, current_price=current_price
+                )
+
                 if trigger_result.should_hedge:
-                    logger.info(f"Hedge trigger for {position['symbol']}: {trigger_result.message}")
-                    
-                    # Open hedge
-                    hedge_result = await self.hedge_manager.open_hedge(position)
-                    
-                    if hedge_result and hedge_result.success:
-                        logger.info(f"Hedge opened for {position['symbol']}: {hedge_result.hedge_id}")
+                    logger.info(
+                        f"Hedge triggered for {position['symbol']}: {trigger_result.reason}"
+                    )
+
+                    # Execute hedge
+                    hedge_result = await self.hedge_manager.execute_hedge(
+                        position=position, trigger_result=trigger_result
+                    )
+
+                    if hedge_result.success:
+                        logger.info(f"Hedge executed for {position['symbol']}")
                     else:
-                        logger.error(f"Failed to open hedge for {position['symbol']}")
-            
-            # Update hedge status
-            await self.hedge_manager.update_hedge_status()
-        
+                        logger.warning(
+                            f"Hedge execution failed: {hedge_result.error_message}"
+                        )
+
         except Exception as e:
             logger.error(f"Error handling hedges: {e}")
-    
-    def _update_state_manager(self):
-        """Update state manager with current positions."""
-        try:
-            # State manager already tracks positions via add/remove/update methods
-            # Just update prices
-            for symbol in self.symbols:
-                price = self.state_manager.get_last_price(symbol)
-                if price:
-                    for pos_id, position in self.open_positions.items():
-                        if position['symbol'] == symbol:
-                            self.state_manager.update_position(pos_id, {
-                                'current_price': price,
-                                'unrealized_pnl': position.get('unrealized_pnl', 0)
-                            })
-        
-        except Exception as e:
-            logger.error(f"Error updating state manager: {e}")
-    
-    def _get_position_risks(self) -> List[Dict[str, Any]]:
-        """Get current positions in risk manager format."""
-        risks = []
-        for position in self.open_positions.values():
-            risks.append({
-                'symbol': position['symbol'],
-                'size': position['size'],
-                'entry_price': position['entry_price'],
-                'stop_loss_price': position.get('stop_loss'),
-                'side': position['side']
-            })
-        return risks
-    
+
     def _log_signal(self, signal: Signal):
         """Log signal to database."""
         try:
-            from ..database import Signal as SignalModel
-            
-            signal_model = SignalModel(
-                symbol=signal.symbol,
-                signal_type=signal.signal.value,
-                price=signal.price,
-                strength=signal.strength,
-                reason=signal.reason,
-                details=signal.details
-            )
-            self.db_manager.save_signal(signal_model)
-        
+            if self.db_manager:
+                self.db_manager.log_signal(
+                    symbol=signal.symbol,
+                    signal_type=signal.signal.value,
+                    strength=signal.strength,
+                    price=signal.price,
+                    timestamp=datetime.now(),
+                )
         except Exception as e:
             logger.error(f"Error logging signal: {e}")
-    
-    def _save_trade_to_db(self, position_data: Dict[str, Any], signal: Signal):
-        """Save trade entry to database."""
+
+    def _log_entry_to_db(self, position_data: Dict[str, Any], signal: Signal):
+        """Log entry to database."""
         try:
-            trade = Trade(
-                id=position_data['id'],
-                symbol=position_data['symbol'],
-                side=TradeSide.LONG if position_data['side'] == 'long' else TradeSide.SHORT,
-                entry_price=position_data['entry_price'],
-                quantity=position_data['size'],
-                entry_time=datetime.fromisoformat(position_data['entry_time']),
-                status=TradeStatus.OPEN,
-                stop_loss_price=position_data.get('stop_loss'),
-                take_profit_price=position_data.get('take_profit'),
-                metadata={
-                    'signal_strength': signal.strength,
-                    'signal_reason': signal.reason
-                }
-            )
-            self.db_manager.save_trade(trade)
-        
+            if self.db_manager:
+                trade = Trade(
+                    id=position_data["id"],
+                    symbol=position_data["symbol"],
+                    side=TradeSide.LONG
+                    if position_data["side"] == "long"
+                    else TradeSide.SHORT,
+                    entry_price=position_data["entry_price"],
+                    size=position_data["size"],
+                    stop_loss=position_data.get("stop_loss"),
+                    take_profit=position_data.get("take_profit"),
+                    entry_time=position_data["entry_time"],
+                    status=TradeStatus.OPEN,
+                    signal_strength=signal.strength,
+                )
+                self.db_manager.save_trade(trade)
         except Exception as e:
-            logger.error(f"Error saving trade to database: {e}")
-    
-    def _update_trade_in_db(self, position_id: str, exit_price: float, realized_pnl: float, reason: str):
-        """Update trade in database on close."""
+            logger.error(f"Error logging entry: {e}")
+
+    def _update_trade_in_db(
+        self, position_id: str, exit_price: float, realized_pnl: float, reason: str
+    ):
+        """Update trade in database when closed."""
         try:
-            trade = self.db_manager.get_trade(position_id)
-            if trade:
-                trade.status = TradeStatus.CLOSED
-                trade.exit_price = exit_price
-                trade.realized_pnl = realized_pnl
-                trade.exit_time = datetime.now()
-                trade.close_reason = reason
-                self.db_manager.update_trade(trade)
-        
+            if self.db_manager:
+                self.db_manager.close_trade(
+                    trade_id=position_id,
+                    exit_price=exit_price,
+                    realized_pnl=realized_pnl,
+                    exit_reason=reason,
+                    exit_time=datetime.now(),
+                )
         except Exception as e:
-            logger.error(f"Error updating trade in database: {e}")
-    
+            logger.error(f"Error updating trade: {e}")
+
     def get_status(self) -> Dict[str, Any]:
-        """
-        Get current bot status.
-        
-        Returns:
-            Dictionary with bot status information
-        """
+        """Get current bot status."""
         return {
-            'running': self.running,
-            'initialized': self.initialized,
-            'open_positions': len(self.open_positions),
-            'active_orders': len(self.active_orders),
-            'portfolio_value': self.portfolio_tracker.get_total_value() if self.portfolio_tracker else 0,
-            'unrealized_pnl': sum(p.get('unrealized_pnl', 0) for p in self.open_positions.values()),
-            'state': self.state_manager.get_state_summary() if self.state_manager else {}
+            "running": self.running,
+            "initialized": self.initialized,
+            "open_positions": len(self.open_positions),
+            "active_orders": len(self.active_orders),
+            "portfolio_value": self.portfolio_tracker.get_total_value()
+            if self.portfolio_tracker
+            else 0,
+            "unrealized_pnl": self.portfolio_tracker.get_unrealized_pnl()
+            if self.portfolio_tracker
+            else 0,
         }

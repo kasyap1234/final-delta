@@ -7,67 +7,20 @@ hedge strategies with profit taking and re-hedging logic.
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Callable
 
-from .position_group import (
-    PositionGroup, 
-    OriginalPosition, 
-    HedgePosition, 
-    HedgeStatus
-)
-from .hedge_executor import (
-    HedgeExecutor, 
-    HedgeRequest, 
-    HedgeExecutionResult,
-    HedgeExecutorConfig
-)
+from .position_group import PositionGroup
+from .hedge_executor import HedgeExecutor
 from ..correlation.correlation_calculator import CorrelationCalculator
 from ..execution.order_executor import OrderExecutor
+from src.shared.hedge_types import (
+    OriginalPosition, HedgePosition, HedgeStatus,
+    HedgeRequest, HedgeExecutionResult, HedgeExecutorConfig,
+    HedgeManagerConfig, HedgeTriggerResult, HedgeCloseResult
+)
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class HedgeManagerConfig:
-    """Configuration for HedgeManager."""
-    # Hedge trigger settings
-    hedge_trigger_threshold: float = 0.5  # 50% of SL distance
-    
-    # Profit taking settings
-    profit_target_ratio: float = 2.0  # 2:1 R:R
-    
-    # Re-hedging settings
-    enable_rehedging: bool = True
-    max_hedges_per_position: int = 5
-    
-    # Position group settings
-    auto_close_on_breakeven: bool = True
-    
-    # Execution settings
-    hedge_executor_config: Optional[HedgeExecutorConfig] = None
-
-
-@dataclass
-class HedgeTriggerResult:
-    """Result of hedge trigger check."""
-    should_hedge: bool
-    trigger_level: int
-    current_loss_pct: float
-    loss_amount: float
-    trigger_threshold: float
-    message: str
-
-
-@dataclass
-class HedgeCloseResult:
-    """Result of closing a hedge position."""
-    success: bool
-    hedge_id: str
-    realized_pnl: float
-    close_price: Optional[float] = None
-    error_message: Optional[str] = None
 
 
 class HedgeManager:

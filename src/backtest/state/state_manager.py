@@ -224,6 +224,7 @@ class StateManager:
         side: str,
         size: float,
         entry_price: float,
+        position_id: Optional[str] = None,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
         metadata: Optional[Dict[str, Any]] = None
@@ -242,9 +243,10 @@ class StateManager:
         Returns:
             Created PositionState
         """
-        self._position_counter += 1
-        timestamp = int(self._current_time.timestamp()) if self._current_time else int(datetime.now().timestamp())
-        position_id = f"{symbol.replace('/', '_')}_{self._position_counter}_{timestamp}"
+        if position_id is None:
+            self._position_counter += 1
+            timestamp = int(self._current_time.timestamp()) if self._current_time else int(datetime.now().timestamp())
+            position_id = f"{symbol.replace('/', '_')}_{self._position_counter}_{timestamp}"
         
         position = PositionState(
             position_id=position_id,

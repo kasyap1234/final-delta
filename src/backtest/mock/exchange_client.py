@@ -220,18 +220,24 @@ class BacktestExchangeClient:
             'currency': balance.currency
         }
     
-    async def fetch_positions(self, symbol: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def fetch_positions(self, symbols: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
         Return simulated open positions.
         
         Args:
-            symbol: Optional symbol filter
+            symbols: Optional list of symbols to filter positions
             
         Returns:
             List of position dictionaries
         """
         self._stats['api_calls'] += 1
-        return self.account_state.get_positions(symbol)
+        all_positions = self.account_state.get_positions()
+        
+        if symbols:
+            # Filter positions by symbol list
+            return [p for p in all_positions if p.get('symbol') in symbols]
+        
+        return all_positions
     
     async def create_order(
         self,

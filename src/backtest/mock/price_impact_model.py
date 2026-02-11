@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 class ImpactConfig:
     """Configuration for price impact model."""
     # Square-root law coefficient (typical range: 0.1 to 1.0)
-    impact_coefficient: float = 0.5
+    impact_coefficient: float = 0.65
     # Temporary impact decay factor (0-1, higher = faster decay)
     temporary_decay: float = 0.7
     # Permanent impact ratio (0-1, portion of impact that is permanent)
     permanent_ratio: float = 0.3
     # Minimum impact threshold (bps)
-    min_impact_bps: float = 1.0
+    min_impact_bps: float = 2.0
     # Maximum impact cap (bps)
     max_impact_bps: float = 500.0
     # Volatility scaling factor
-    volatility_factor: float = 1.0
+    volatility_factor: float = 1.25
     # Market depth factor (higher = deeper market, less impact)
     market_depth_factor: float = 1.0
 
